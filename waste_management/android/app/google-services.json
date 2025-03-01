@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "107358446244",
+    "project_id": "wastemanagement-ac9bc",
+    "storage_bucket": "wastemanagement-ac9bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:107358446244:android:b783ad6f111c4039193c31",
+        "android_client_info": {
+          "package_name": "com.example.waste_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_Vm3_djvUkgyXRN0zCbO0bNhxhAZncvc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
