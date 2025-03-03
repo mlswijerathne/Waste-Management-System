@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-class ResidentNavbar extends StatelessWidget {
+class DriversNavbar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 
-  const ResidentNavbar({
+  const DriversNavbar({
     super.key,
     required this.currentIndex,
     required this.onTap,
@@ -29,8 +29,8 @@ class ResidentNavbar extends StatelessWidget {
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent, 
-          highlightColor: Colors.transparent, 
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
         ),
         child: Padding(
           padding: const EdgeInsets.only(top: 8.0),
@@ -44,26 +44,26 @@ class ResidentNavbar extends StatelessWidget {
               if (index == 3) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/resident_profile');
+                  Navigator.pushNamed(context, '/driver_profile');
                 });
               }
             },
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white, 
+            unselectedItemColor: Colors.white,
             showUnselectedLabels: true,
             showSelectedLabels: true,
-            elevation: 0, 
+            elevation: 0,
             items: [
-              _buildBottomNavigationBarItem(
-                  Icons.home_outlined, Icons.home, 'Home', currentIndex == 0),
-              _buildBottomNavigationBarItem(Icons.assignment_outlined,
-                  Icons.assignment, 'Report', currentIndex == 1),
-              _buildBottomNavigationBarItem(Icons.notifications_outlined,
-                  Icons.notifications, 'Notification', currentIndex == 2),
-              _buildBottomNavigationBarItem(Icons.person_outline, Icons.person,
-                  'Profile', currentIndex == 3),
+              _buildBottomNavigationBarItem(Icons.home_outlined,
+                  Icons.home, 'Home', currentIndex == 0),
+              _buildBottomNavigationBarItem(Icons.alt_route_outlined,
+                  Icons.alt_route, 'Tracker', currentIndex == 1), // Changed icon for Tracker
+              _buildBottomNavigationBarItem(Icons.announcement_outlined,
+                  Icons.announcement, 'Issues', currentIndex == 2),
+              _buildBottomNavigationBarItem(Icons.assignment_outlined, 
+                  Icons.assignment, 'Report', currentIndex == 3),
             ],
           ),
         ),
@@ -75,7 +75,7 @@ class ResidentNavbar extends StatelessWidget {
       IconData icon, IconData activeIcon, String label, bool isSelected) {
     return BottomNavigationBarItem(
       icon: Transform.scale(
-        scale: isSelected ? 1.3 : 1.0, 
+        scale: isSelected ? 1.3 : 1.0,
         child: Icon(isSelected ? activeIcon : icon),
       ),
       label: label,

@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:waste_management/widgets/resident_navbar.dart';
+import 'package:waste_management/widgets/driver_navbar.dart';
 
-class ResidentHome extends StatefulWidget {
-  const ResidentHome({super.key});
+
+class DriverHome extends StatefulWidget {
+  const DriverHome({super.key});
 
   @override
-  State<ResidentHome> createState() => _ResidentHomeState(); // Fixed to use the proper State generic type
+  State<DriverHome> createState() => _DriverHomeState();
 }
 
-class _ResidentHomeState extends State<ResidentHome> {
+class _DriverHomeState extends State<DriverHome> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
     const Center(child: Text('Home Page')),
-    const Center(child: Text('Report Page')),
+    const Center(child: Text('Tasks Page')),
     const Center(child: Text('Notification Page')),
     const Center(child: Text('Profile Page')),
   ];
@@ -28,14 +29,14 @@ class _ResidentHomeState extends State<ResidentHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Waste Management System'),
-        backgroundColor: const Color(0x00ffffff),
+        title: const Text('Driver Interface'),
+        backgroundColor: const Color(0xFFFFFF),
       ),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ), // Use IndexedStack to preserve state
-      bottomNavigationBar: ResidentNavbar(
+      bottomNavigationBar: DriversNavbar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
       ),

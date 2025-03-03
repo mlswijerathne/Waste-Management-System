@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:waste_management/screens/driver_screens/driver_home.dart';
 import 'package:waste_management/screens/resident_screens/resident_home.dart';
 import './utils/theme.dart';
 
@@ -19,10 +20,10 @@ class MyApp extends StatelessWidget {
       title: 'Waste Management System',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: '/resident_home', // Set initial route to HomeScreen
+      initialRoute: '/driver_home', // Set initial route to HomeScreen
       routes: {
-        '/resident_home': (context) => const ResidentHome(), // Route for HomeScreen
-        // '/resident_profile': (context) => const ResidentProfileScreen(), // Route for ProfileScreen
+        '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
+        '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
       },
     );
   }
