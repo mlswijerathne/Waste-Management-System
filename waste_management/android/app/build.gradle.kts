@@ -11,7 +11,7 @@ plugins {
 android {
     namespace = "com.example.waste_management"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "27.0.12077973"  // Updated NDK version
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

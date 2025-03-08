@@ -30,7 +30,7 @@ class _DriverHomeState extends State<DriverHome> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver Interface'),
-        backgroundColor: const Color(0xFFFFFF),
+        backgroundColor: const Color(0x00ffffff),
       ),
       body: IndexedStack(
         index: _currentIndex,
