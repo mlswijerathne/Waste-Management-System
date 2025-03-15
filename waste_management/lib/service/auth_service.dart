@@ -91,7 +91,38 @@ class AuthService {
     }
   }
 
-  // Sign in with email and password
+ // Sign in with email and password
+  Future<UserModel?> signIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (result.user != null) {
+        DocumentSnapshot doc =
+            await _firestore.collection('users').doc(result.user!.uid).get();
+
+        if (doc.exists) {
+          return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error during sign in: $e');
+      return null;
+    }
+  }
 
   // Sign out
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      print('Error during sign out: $e');
+    }
+  }
 }
