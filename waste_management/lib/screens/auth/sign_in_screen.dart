@@ -40,23 +40,42 @@ class _SignInPageState extends State<SignInPage> {
             // Illustration with blue background
             Container(
               width: double.infinity,
-              height: MediaQuery.of(context).size.height * 0.45,
+              height: MediaQuery.of(context).size.height * 0.35, // Reduced height
               decoration: const BoxDecoration(
                 color: Color(0xFFF0F7FF),
               ),
               child: Image.asset(
-                'assets/image/signin.png', // Add this illustration to your assets
+                'assets/image/signin.png',
                 fit: BoxFit.contain,
               ),
             ),
             
-            // Sign in card
+            // White area (reduced gap)
             Container(
+              height: 10, // Very small gap
+              color: Colors.white,
+            ),
+            
+            // Sign in card with lighter shadow
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Reduced vertical margin
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.4), // Lighter shadow
+                    spreadRadius: 1, // Smaller spread
+                    blurRadius: 6, // Reduced blur
+                    offset: const Offset(0, 2), // Smaller offset
+                  ),
+                ],
+                border: Border.all(color: Colors.grey.shade100, width: 0.5), // Lighter border
+              ),
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 16),
                   const Text(
                     'Sign in',
                     style: TextStyle(
@@ -65,20 +84,23 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
                   
-                  // Username field
+                  // Email field
                   TextField(
                     decoration: InputDecoration(
-                      hintText: 'Username',
+                      labelText: 'Email',
+                      hintText: 'Enter your email',
                       filled: true,
                       fillColor: const Color(0xFFF5F5F5),
+                      prefixIcon: const Icon(Icons.email, color: Color(0xFF59A867)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
                   
@@ -86,9 +108,11 @@ class _SignInPageState extends State<SignInPage> {
                   TextField(
                     obscureText: true,
                     decoration: InputDecoration(
-                      hintText: 'Password',
+                      labelText: 'Password',
+                      hintText: 'Enter your password',
                       filled: true,
                       fillColor: const Color(0xFFF5F5F5),
+                      prefixIcon: const Icon(Icons.lock, color: Color(0xFF59A867)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
@@ -114,6 +138,7 @@ class _SignInPageState extends State<SignInPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(4),
                           ),
+                          activeColor: const Color(0xFF59A867),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -142,6 +167,7 @@ class _SignInPageState extends State<SignInPage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
+                      elevation: 1, // Reduced elevation
                     ),
                     child: const Text(
                       'Login',
