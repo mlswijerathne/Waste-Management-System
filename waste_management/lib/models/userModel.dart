@@ -2,7 +2,6 @@ class UserModel {
   final String uid;
   final String name;
   final String role; // 'resident', 'driver', or 'cityManagement'
-  final String username;
   final String nic;
   final String address;
   final String contactNumber; // Must have exactly 10 digits
@@ -12,7 +11,6 @@ class UserModel {
     required this.uid,
     required this.name,
     required this.role,
-    required this.username,
     required this.nic,
     required this.address,
     required this.contactNumber,
@@ -37,7 +35,6 @@ class UserModel {
       uid: map['uid'] ?? '',
       name: map['name'] ?? '',
       role: map['role'] ?? '',
-      username: map['username'] ?? '',
       nic: map['nic'] ?? '',
       address: map['address'] ?? '',
       contactNumber: map['contactNumber'] ?? '',
@@ -50,7 +47,6 @@ class UserModel {
       'uid': uid,
       'name': name,
       'role': role,
-      'username': username,
       'nic': nic,
       'address': address,
       'contactNumber': contactNumber,

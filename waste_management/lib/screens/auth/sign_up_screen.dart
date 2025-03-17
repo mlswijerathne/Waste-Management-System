@@ -14,7 +14,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _nicController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
@@ -30,7 +29,6 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _usernameController.dispose();
     _nicController.dispose();
     _addressController.dispose();
     _contactController.dispose();
@@ -63,16 +61,22 @@ class _SignupScreenState extends State<SignupScreen> {
         password: _passwordController.text,
         role: _selectedRole,
         name: _nameController.text.trim(),
-        username: _usernameController.text.trim(),
         nic: _nicController.text.trim(),
         address: _addressController.text.trim(),
         contactNumber: _contactController.text.trim(),
       );
       
       if (user != null) {
-        // Navigate to home or dashboard based on role
+        // Navigate based on user role
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+          if (user.role == 'resident') {
+            Navigator.pushReplacementNamed(context, '/resident_home');
+          } else if (user.role == 'driver') {
+            Navigator.pushReplacementNamed(context, '/driver_home');
+          } else {
+            // Default fallback
+            Navigator.pushReplacementNamed(context, '/home');
+          }
         }
       } else {
         setState(() {
@@ -154,6 +158,25 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                           ),
                           const SizedBox(height: 10),
+
+                          // Email Address field
+                          const Text('Email Address', style: TextStyle(fontSize: 13)),
+                          const SizedBox(height: 5),
+                          _buildTextField(
+                            controller: _emailController,
+                            hintText: 'Enter your email',
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
+                              }
+                              if (!RegExp(r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$').hasMatch(value)) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 10),
                           
                           // Enroll Type field
                           const Text('Enroll Type', style: TextStyle(fontSize: 13)),
@@ -169,7 +192,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               child: DropdownButton<String>(
                                 value: _selectedRole,
                                 icon: const Icon(Icons.keyboard_arrow_down),
-                                items: <String>['resident', 'driver', 'cityManagement']
+                                items: <String>['resident', 'driver']
                                     .map<DropdownMenuItem<String>>((String value) {
                                   return DropdownMenuItem<String>(
                                     value: value,
@@ -186,20 +209,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                           const SizedBox(height: 10),
                           
-                          // Username field
-                          const Text('Username', style: TextStyle(fontSize: 13)),
-                          const SizedBox(height: 5),
-                          _buildTextField(
-                            controller: _usernameController,
-                            hintText: 'Enter username',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter a username';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 10),
                           
                           // NIC field
                           const Text('NIC', style: TextStyle(fontSize: 13)),
@@ -244,25 +253,6 @@ class _SignupScreenState extends State<SignupScreen> {
                               }
                               if (value.length != 10 || !RegExp(r'^[0-9]+$').hasMatch(value)) {
                                 return 'Contact number must be exactly 10 digits';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          
-                          // Email Address field
-                          const Text('Email Address', style: TextStyle(fontSize: 13)),
-                          const SizedBox(height: 5),
-                          _buildTextField(
-                            controller: _emailController,
-                            hintText: 'Enter your email',
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your email';
-                              }
-                              if (!RegExp(r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$').hasMatch(value)) {
-                                return 'Please enter a valid email';
                               }
                               return null;
                             },
@@ -391,7 +381,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         const Text('Already have an account?', style: TextStyle(fontSize: 13)),
                         TextButton(
                           onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/signin');
+                            Navigator.pushReplacementNamed(context, '/sign_in_page');
                           },
                           child: const Text(
                             'Sign in',
