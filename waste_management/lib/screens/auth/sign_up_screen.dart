@@ -70,7 +70,7 @@ class _SignupScreenState extends State<SignupScreen> {
         // Navigate based on user role
         if (mounted) {
           if (user.role == 'resident') {
-            Navigator.pushReplacementNamed(context, '/resident_home');
+            Navigator.pushReplacementNamed(context, '/resident_detail');
           } else if (user.role == 'driver') {
             Navigator.pushReplacementNamed(context, '/driver_home');
           } else {

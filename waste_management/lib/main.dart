@@ -4,6 +4,8 @@ import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home.dart';
+import 'package:waste_management/screens/resident_screens/resident-detailtwo.dart';
+import 'package:waste_management/screens/resident_screens/resident_detail.dart';
 import 'package:waste_management/screens/resident_screens/resident_home.dart';
 import './utils/theme.dart';
 
@@ -30,6 +32,8 @@ class MyApp extends StatelessWidget {
         '/sign_in_page' : (context) => const SignInPage(),
         '/sign_up_page' : (context) => const SignupScreen(),
         '/admin_home' : (context) => const AdminHome(),
+        '/resident_detail':(context)=>  DetailPage(),
+        '/resident_detailtwo' : (context)=> DetailTwoScreen(),
 
       },
     );
