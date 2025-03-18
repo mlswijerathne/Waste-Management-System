@@ -71,7 +71,7 @@ flutter:
   assets:
     - assets/image/signin.png
     - assets/image/detail.png
-
+    - assets/image/trash_track.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
