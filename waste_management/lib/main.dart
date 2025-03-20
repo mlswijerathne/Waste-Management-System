@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:waste_management/screens/auth/loading_screen.dart';
 import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
@@ -25,7 +26,7 @@ class MyApp extends StatelessWidget {
       title: 'Waste Management System',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: '/sign_in_page', // Set initial route to HomeScreen
+      initialRoute: '/loading_screen', // Set initial route to HomeScreen
       routes: {
         '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
         '/admin_home' : (context) => const AdminHome(),
         '/resident_detail':(context)=>  DetailPage(),
         '/resident_detailtwo' : (context)=> DetailTwoScreen(),
+        '/loading_screen' : (context) => LoadingScreen(),
 
       },
     );

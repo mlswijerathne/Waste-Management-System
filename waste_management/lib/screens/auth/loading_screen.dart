@@ -12,7 +12,6 @@ class _LoadingScreenState extends State<LoadingScreen>
   late AnimationController _controller;
   late Animation<Offset> _animation;
   late Animation<double> _fadeAnimation;
-  bool _showButton = false;
 
   @override
   void initState() {
@@ -34,25 +33,17 @@ class _LoadingScreenState extends State<LoadingScreen>
     ));
 
     // Define fade-in animation for the button
+    // Start fading in at 50% of the animation so it appears while logo is still moving
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.8, 1.0, curve: Curves.easeIn),
+      curve: const Interval(0.5, 0.9, curve: Curves.easeIn),
     ));
 
     // Start the logo animation
     _controller.forward();
-
-    // Show button after the animation completes
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          _showButton = true;
-        });
-      }
-    });
   }
 
   @override
@@ -80,30 +71,30 @@ class _LoadingScreenState extends State<LoadingScreen>
               ),
             ),
           ),
-          if (_showButton)
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 50.0),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 50, vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+          // Always include the button widget but control its visibility with FadeTransition
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 50.0),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 50, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/login');
-                  },
-                  child: const Text(
-                    "Get started",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+                ),
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/sign_in_page');
+                },
+                child: const Text(
+                  "Get started",
+                  style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
