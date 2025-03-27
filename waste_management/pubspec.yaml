@@ -44,7 +44,8 @@ dependencies:
   path: ^1.9.1
   shared_preferences: ^2.2.0
   uuid: ^4.5.1
-  intl: ^0.20.2
+  intl: ^0.18.1  
+  geolocator: ^9.0.2
 
 
 dev_dependencies:
