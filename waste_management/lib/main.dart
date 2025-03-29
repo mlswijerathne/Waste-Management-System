@@ -33,19 +33,19 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/loading_screen', // Set initial route to HomeScreen
       routes: {
-        'breakdown_screen' :(context) => BreakdownReportScreen(),
+        'breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
-        '/forget_passowrd' : (context) => ForgotPasswordScreen(),
-        '/sign_in_page' : (context) => const SignInPage(),
-        '/sign_up_page' : (context) => const SignupScreen(),
-        '/loading_screen' : (context) => LoadingScreen(),
-        '/admin_home' : (context) => const AdminHome(),
+        '/forget_passowrd' : (context) => ForgotPasswordScreen(), //Route for ForgotPasswordScreen
+        '/sign_in_page' : (context) => const SignInPage(), //Route for SignInPage
+        '/sign_up_page' : (context) => const SignupScreen(),//signin page screen
+        '/loading_screen' : (context) => LoadingScreen(),//Route for LoadingScreen
+        '/admin_home' : (context) => const AdminHome(),//Route for AdminHome
         '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
-        '/resident_detail':(context)=>  DetailPage(),
-        '/resident_detailtwo' : (context)=> DetailTwoScreen(),
-        'cleanless_issue' : (context) => ReportCleanlinessIssuePage(),
-        'request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),
-        'recent_report' : (context) => RecentReportsScreen(),
+        '/resident_detail':(context)=>  DetailPage(),//Route for DetailPage
+        '/resident_detailtwo' : (context)=> DetailTwoScreen(),//Route for DetailTwoScreen
+        'cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
+        'request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
+        'recent_report' : (context) => RecentReportsScreen(),//Route for RecentReportsScreen
 
         
        
