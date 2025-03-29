@@ -1,10 +1,15 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:waste_management/screens/auth/forget_password_screen.dart';
 import 'package:waste_management/screens/auth/loading_screen.dart';
 import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
+import 'package:waste_management/screens/driver_screens/breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home.dart';
+import 'package:waste_management/screens/resident_screens/reprt_cleaanless_issue.dart';
+import 'package:waste_management/screens/resident_screens/request_special_garbage_location_screen.dart';
+import 'package:waste_management/screens/resident_screens/resent_repeort_and_request.dart';
 import 'package:waste_management/screens/resident_screens/resident-detailtwo.dart';
 import 'package:waste_management/screens/resident_screens/resident_detail.dart';
 import 'package:waste_management/screens/resident_screens/resident_home.dart';
@@ -28,15 +33,22 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/loading_screen', // Set initial route to HomeScreen
       routes: {
-        '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
+        'breakdown_screen' :(context) => BreakdownReportScreen(),
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
+        '/forget_passowrd' : (context) => ForgotPasswordScreen(),
         '/sign_in_page' : (context) => const SignInPage(),
         '/sign_up_page' : (context) => const SignupScreen(),
+        '/loading_screen' : (context) => LoadingScreen(),
         '/admin_home' : (context) => const AdminHome(),
+        '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
         '/resident_detail':(context)=>  DetailPage(),
         '/resident_detailtwo' : (context)=> DetailTwoScreen(),
-        '/loading_screen' : (context) => LoadingScreen(),
+        'cleanless_issue' : (context) => ReportCleanlinessIssuePage(),
+        'request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),
+        'recent_report' : (context) => RecentReportsScreen(),
 
+        
+       
       },
     );
   }
