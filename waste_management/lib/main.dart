@@ -31,9 +31,9 @@ class MyApp extends StatelessWidget {
       title: 'Waste Management System',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: '/loading_screen', // Set initial route to HomeScreen
+      initialRoute: '/sign_up_page', // Set initial route to HomeScreen
       routes: {
-        'breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
+        '/breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
         '/forget_passowrd' : (context) => ForgotPasswordScreen(), //Route for ForgotPasswordScreen
         '/sign_in_page' : (context) => const SignInPage(), //Route for SignInPage
@@ -43,9 +43,9 @@ class MyApp extends StatelessWidget {
         '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
         '/resident_detail':(context)=>  DetailPage(),//Route for DetailPage
         '/resident_detailtwo' : (context)=> DetailTwoScreen(),//Route for DetailTwoScreen
-        'cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
-        'request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
-        'recent_report' : (context) => RecentReportsScreen(),//Route for RecentReportsScreen
+        '/cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
+        '/request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
+        '/recent_report' : (context) => RecentReportsScreen(),//Route for RecentReportsScreen
 
         
        
