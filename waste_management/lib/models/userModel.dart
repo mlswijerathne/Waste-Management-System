@@ -7,6 +7,7 @@ class UserModel {
   final String contactNumber; // Must have exactly 10 digits
   final String email;
 
+
   UserModel({
     required this.uid,
     required this.name,
@@ -15,6 +16,7 @@ class UserModel {
     required this.address,
     required this.contactNumber,
     required this.email,
+    
   }) {
     // Validate contact number
     if (contactNumber.length != 10 ||
@@ -39,6 +41,7 @@ class UserModel {
       address: map['address'] ?? '',
       contactNumber: map['contactNumber'] ?? '',
       email: map['email'] ?? '',
+   
     );
   }
 
@@ -51,6 +54,7 @@ class UserModel {
       'address': address,
       'contactNumber': contactNumber,
       'email': email,
+    
     };
   }
 }

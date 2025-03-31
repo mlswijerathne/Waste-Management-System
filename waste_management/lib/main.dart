@@ -13,6 +13,7 @@ import 'package:waste_management/screens/resident_screens/resent_repeort_and_req
 import 'package:waste_management/screens/resident_screens/resident-detailtwo.dart';
 import 'package:waste_management/screens/resident_screens/resident_detail.dart';
 import 'package:waste_management/screens/resident_screens/resident_home.dart';
+import 'package:waste_management/screens/resident_screens/resident_profile.dart';
 import './utils/theme.dart';
 
 
@@ -31,7 +32,7 @@ class MyApp extends StatelessWidget {
       title: 'Waste Management System',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: '/sign_up_page', // Set initial route to HomeScreen
+      initialRoute: '/resident_profile', // Set initial route to HomeScreen
       routes: {
         '/breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
@@ -43,9 +44,11 @@ class MyApp extends StatelessWidget {
         '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
         '/resident_detail':(context)=>  DetailPage(),//Route for DetailPage
         '/resident_detailtwo' : (context)=> DetailTwoScreen(),//Route for DetailTwoScreen
+        '/resident_profile' : (context) => ProfileScreen(), //route resident profile
         '/cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
         '/request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
         '/recent_report' : (context) => RecentReportsScreen(),//Route for RecentReportsScreen
+        
 
         
        
