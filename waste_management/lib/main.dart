@@ -8,9 +8,9 @@ import 'package:waste_management/screens/city_management_screens/admin_home_scre
 import 'package:waste_management/screens/driver_screens/breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home.dart';
 import 'package:waste_management/screens/driver_screens/driver_profile.dart';
-import 'package:waste_management/screens/resident_screens/reprt_cleaanless_issue.dart';
+import 'package:waste_management/screens/resident_screens/report_cleanliness_issue.dart';
 import 'package:waste_management/screens/resident_screens/request_special_garbage_location_screen.dart';
-import 'package:waste_management/screens/resident_screens/resent_repeort_and_request.dart';
+import 'package:waste_management/screens/resident_screens/recent_report_and_request.dart';
 import 'package:waste_management/screens/resident_screens/resident-detailtwo.dart';
 import 'package:waste_management/screens/resident_screens/resident_detail.dart';
 import 'package:waste_management/screens/resident_screens/resident_home.dart';
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       title: 'Waste Management System',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: '/resident_profile', // Set initial route to HomeScreen
+      initialRoute: '/loading_screen', // Set initial route to HomeScreen
       routes: {
         '/breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
@@ -48,8 +48,11 @@ class MyApp extends StatelessWidget {
         '/resident_profile' : (context) => ResidentProfileScreen(), //route resident profile
         '/cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
         '/request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
-        '/recent_report' : (context) => RecentReportsScreen(),//Route for RecentReportsScreen
         '/driver_profile' : (context) => DriverProfileScreen(), //route driver profile
+        '/report_cleanliness_issue' : (context) => ReportCleanlinessIssuePage(), //Route for ReportCleanlinessIssuePage
+        '/request_special_garbage_location' : (context) => RequestSpecialGarbageLocationScreen(),//Route for RequestSpecialGarbageLocationScreen
+        '/recent_report_and_request' : (context) => RecentReportsRequestsPage(),//Route for RecentReportsRequestsPage
+        
     
 
         

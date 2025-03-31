@@ -41,7 +41,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Please login as a driver to access this page')),
           );
-          Navigator.pushReplacementNamed(context, '/login');
+          Navigator.pushReplacementNamed(context, '/sign_in_page');
         }
       }
     } catch (e) {
@@ -49,7 +49,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Authorization error: $e')),
         );
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/sign_in_page');
       }
     }
   }
@@ -91,7 +91,10 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/sign_in_page');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged out successfully')),
+        );
       }
     } catch (e) {
       if (mounted) {

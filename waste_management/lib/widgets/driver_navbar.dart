@@ -39,7 +39,7 @@ class DriversNavbar extends StatelessWidget {
             onTap: (index) {
               // First update the current index
               onTap(index);
-              
+
               // Then handle navigation if needed
               if (index == 3) {
                 // Use Future.delayed to avoid state update conflicts
@@ -56,14 +56,30 @@ class DriversNavbar extends StatelessWidget {
             showSelectedLabels: true,
             elevation: 0,
             items: [
-              _buildBottomNavigationBarItem(Icons.home_outlined,
-                  Icons.home, 'Home', currentIndex == 0),
-              _buildBottomNavigationBarItem(Icons.alt_route_outlined,
-                  Icons.alt_route, 'Tracker', currentIndex == 1), // Changed icon for Tracker
-              _buildBottomNavigationBarItem(Icons.announcement_outlined,
-                  Icons.announcement, 'Issues', currentIndex == 2),
-              _buildBottomNavigationBarItem(Icons.assignment_outlined, 
-                  Icons.assignment, 'Report', currentIndex == 3),
+              _buildBottomNavigationBarItem(
+                Icons.home_outlined,
+                Icons.home,
+                'Home',
+                currentIndex == 0,
+              ),
+              _buildBottomNavigationBarItem(
+                Icons.alt_route_outlined,
+                Icons.alt_route,
+                'Tracker',
+                currentIndex == 1,
+              ), // Changed icon for Tracker
+              _buildBottomNavigationBarItem(
+                Icons.announcement_outlined,
+                Icons.announcement,
+                'Issues',
+                currentIndex == 2,
+              ),
+              _buildBottomNavigationBarItem(
+                Icons.assignment_outlined,
+                Icons.assignment,
+                'Report',
+                currentIndex == 3,
+              ),
             ],
           ),
         ),
@@ -72,7 +88,11 @@ class DriversNavbar extends StatelessWidget {
   }
 
   BottomNavigationBarItem _buildBottomNavigationBarItem(
-      IconData icon, IconData activeIcon, String label, bool isSelected) {
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    bool isSelected,
+  ) {
     return BottomNavigationBarItem(
       icon: Transform.scale(
         scale: isSelected ? 1.3 : 1.0,

@@ -39,7 +39,7 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Please login as a resident to access this page')),
           );
-          Navigator.pushReplacementNamed(context, '/login');
+          Navigator.pushReplacementNamed(context, '/sign_in_page');
         }
       }
     } catch (e) {
@@ -47,7 +47,7 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Authorization error: $e')),
         );
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/sign_in_page');
       }
     }
   }
@@ -89,7 +89,11 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/sign_in_page');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged out successfully')),
+        );
+
       }
     } catch (e) {
       if (mounted) {
@@ -119,7 +123,7 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/resident_home'),
         ),
       ),
       body: SingleChildScrollView(
