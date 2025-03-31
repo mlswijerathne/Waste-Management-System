@@ -7,6 +7,7 @@ import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home.dart';
+import 'package:waste_management/screens/driver_screens/driver_profile.dart';
 import 'package:waste_management/screens/resident_screens/reprt_cleaanless_issue.dart';
 import 'package:waste_management/screens/resident_screens/request_special_garbage_location_screen.dart';
 import 'package:waste_management/screens/resident_screens/resent_repeort_and_request.dart';
@@ -44,11 +45,12 @@ class MyApp extends StatelessWidget {
         '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
         '/resident_detail':(context)=>  DetailPage(),//Route for DetailPage
         '/resident_detailtwo' : (context)=> DetailTwoScreen(),//Route for DetailTwoScreen
-        '/resident_profile' : (context) => ProfileScreen(), //route resident profile
+        '/resident_profile' : (context) => ResidentProfileScreen(), //route resident profile
         '/cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
         '/request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
         '/recent_report' : (context) => RecentReportsScreen(),//Route for RecentReportsScreen
-        
+        '/driver_profile' : (context) => DriverProfileScreen(), //route driver profile
+    
 
         
        

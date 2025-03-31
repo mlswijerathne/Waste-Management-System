@@ -276,7 +276,7 @@ class CleanlinessIssueService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return CleanlinessIssueModel.fromMap(doc.data() as Map<String, dynamic>);
+        return CleanlinessIssueModel.fromMap(doc.data());
       }).toList();
     });
   }
@@ -290,7 +290,7 @@ class CleanlinessIssueService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return CleanlinessIssueModel.fromMap(doc.data() as Map<String, dynamic>);
+        return CleanlinessIssueModel.fromMap(doc.data());
       }).toList();
     });
   }

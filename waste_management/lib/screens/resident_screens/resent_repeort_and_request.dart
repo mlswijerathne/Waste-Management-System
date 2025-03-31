@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class RecentReportsScreen extends StatefulWidget {
-  const RecentReportsScreen({Key? key}) : super(key: key);
+  const RecentReportsScreen({super.key});
 
   @override
   _RecentReportsScreenState createState() => _RecentReportsScreenState();

@@ -8,7 +8,7 @@ import 'package:waste_management/service/cleanliness_issue_service.dart';
 
 
 class ReportCleanlinessIssuePage extends StatefulWidget {
-  const ReportCleanlinessIssuePage({Key? key}) : super(key: key);
+  const ReportCleanlinessIssuePage({super.key});
 
   @override
   _ReportCleanlinessIssuePageState createState() => _ReportCleanlinessIssuePageState();

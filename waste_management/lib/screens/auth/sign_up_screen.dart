@@ -3,7 +3,7 @@ import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/models/userModel.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();

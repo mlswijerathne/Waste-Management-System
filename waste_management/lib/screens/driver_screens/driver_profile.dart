@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:waste_management/models/userModel.dart';
-import 'package:waste_management/screens/resident_screens/resident_edit_profile.dart';
+import 'package:waste_management/screens/driver_screens/driver_edit_profile.dart';
+//import 'package:waste_management/screens/driver_screens/driver_edit_profile.dart';
 import 'package:waste_management/service/auth_service.dart';
 
 import 'dart:convert';
 
-class ResidentProfileScreen extends StatefulWidget {
-  const ResidentProfileScreen({super.key});
+class DriverProfileScreen extends StatefulWidget {
+  const DriverProfileScreen({super.key});
 
   @override
-  State<ResidentProfileScreen> createState() => _ResidentProfileScreenState();
+  State<DriverProfileScreen> createState() => _DriverProfileScreenState();
 }
 
-class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
+class _DriverProfileScreenState extends State<DriverProfileScreen> {
   final AuthService _authService = AuthService();
   UserModel? currentUser;
   bool isLoading = true;
@@ -29,7 +31,7 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
   Future<void> _checkAuthorization() async {
     try {
       final user = await _authService.getCurrentUser();
-      if (user != null && user.role == 'resident') {
+      if (user != null && user.role == 'driver') {
         setState(() {
           isAuthorized = true;
         });
@@ -37,7 +39,7 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please login as a resident to access this page')),
+            const SnackBar(content: Text('Please login as a driver to access this page')),
           );
           Navigator.pushReplacementNamed(context, '/login');
         }
@@ -171,7 +173,6 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   _buildProfileInfo('NIC', currentUser?.nic ?? ''),
                   _buildProfileInfo('Address', currentUser?.address ?? ''),
                   _buildProfileInfo('Contact Number', currentUser?.contactNumber ?? ''),
@@ -180,7 +181,6 @@ class _ResidentProfileScreenState extends State<ResidentProfileScreen> {
               ),
             ),
             const SizedBox(height: 30),
-
             // Edit Profile & Logout Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
