@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:waste_management/models/userModel.dart';
-import 'package:waste_management/screens/driver_screens/driver_edit_profile.dart';
+import 'package:waste_management/screens/driver_screens/driver_edit_profile_screen.dart';
 //import 'package:waste_management/screens/driver_screens/driver_edit_profile.dart';
 import 'package:waste_management/service/auth_service.dart';
 

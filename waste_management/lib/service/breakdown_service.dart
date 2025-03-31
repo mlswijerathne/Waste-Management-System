@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:waste_management/models/breakdown_report_model.dart'; // Assuming the model is in this file
+import 'package:waste_management/models/breakdownReportModel.dart'; // Assuming the model is in this file
 
 class BreakdownService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

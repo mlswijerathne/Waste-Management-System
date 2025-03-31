@@ -6,15 +6,15 @@ import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/breakdown_screen.dart';
-import 'package:waste_management/screens/driver_screens/driver_home.dart';
-import 'package:waste_management/screens/driver_screens/driver_profile.dart';
-import 'package:waste_management/screens/resident_screens/report_cleanliness_issue.dart';
+import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
+import 'package:waste_management/screens/driver_screens/driver_profile_screen.dart';
+import 'package:waste_management/screens/resident_screens/report_cleanliness_issue_screen.dart';
 import 'package:waste_management/screens/resident_screens/request_special_garbage_location_screen.dart';
-import 'package:waste_management/screens/resident_screens/recent_report_and_request.dart';
-import 'package:waste_management/screens/resident_screens/resident-detailtwo.dart';
-import 'package:waste_management/screens/resident_screens/resident_detail.dart';
-import 'package:waste_management/screens/resident_screens/resident_home.dart';
-import 'package:waste_management/screens/resident_screens/resident_profile.dart';
+import 'package:waste_management/screens/resident_screens/recent_cleanliness_report_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident-detailtwo_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_detail_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_home_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_profile_screen.dart';
 import './utils/theme.dart';
 
 

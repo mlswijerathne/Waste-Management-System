@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:waste_management/models/breakdown_report_model.dart';
+import 'package:waste_management/models/breakdownReportModel.dart';
 import 'package:waste_management/models/userModel.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/breakdown_service.dart';
