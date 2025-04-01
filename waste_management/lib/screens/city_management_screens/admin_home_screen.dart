@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:waste_management/widgets/driver_navbar.dart';
+import 'package:waste_management/widgets/admin_navbar.dart';
 
 
 class AdminHome extends StatefulWidget {
@@ -36,7 +36,7 @@ class _AdminHomeState extends State<AdminHome> {
         index: _currentIndex,
         children: _pages,
       ), // Use IndexedStack to preserve state
-      bottomNavigationBar: DriversNavbar(
+      bottomNavigationBar: AdminNavbar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
       ),

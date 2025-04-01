@@ -39,6 +39,41 @@ class AuthService {
     }
   }
 
+  // Get all drivers
+  Future<List<UserModel>> getDrivers() async {
+    try {
+      final QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'driver')
+          .get();
+          
+      return snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('Error fetching drivers: $e');
+      rethrow;
+    }
+  }
+  
+  // Get driver by ID
+  Future<UserModel?> getDriverById(String driverId) async {
+    try {
+      final DocumentSnapshot doc = await _firestore
+          .collection('users')
+          .doc(driverId)
+          .get();
+          
+      if (doc.exists) {
+        return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching driver: $e');
+      rethrow;
+    }
+  }
+
   // Sign up with email and password
   Future<UserModel?> signUp({
     required String email,

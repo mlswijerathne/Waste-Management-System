@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-class DriversNavbar extends StatelessWidget {
+class AdminNavbar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 
-  const DriversNavbar({
+  const AdminNavbar({
     super.key,
     required this.currentIndex,
     required this.onTap,
@@ -29,8 +29,8 @@ class DriversNavbar extends StatelessWidget {
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
+          splashColor: Colors.transparent, 
+          highlightColor: Colors.transparent, 
         ),
         child: Padding(
           padding: const EdgeInsets.only(top: 8.0),
@@ -40,54 +40,49 @@ class DriversNavbar extends StatelessWidget {
               // First update the current index
               onTap(index);
 
+              if (index == 0) {
+                // Use Future.delayed to avoid state update conflicts
+                Future.delayed(Duration.zero, () {
+                  Navigator.pushNamed(context, '/admin_create_route');
+                });
+              }
+              
               if (index == 1) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/driver_route_list');
-                });
-              }
-              // Then navigate to the corresponding screen
-              if (index == 3) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/driver_profile');
+                  Navigator.pushNamed(context, '');
                 });
               }
 
-              
+              if (index == 2) {
+                // Use Future.delayed to avoid state update conflicts
+                Future.delayed(Duration.zero, () {
+                  Navigator.pushNamed(context, '');
+                });
+              }
+              if (index == 3) {
+                // Use Future.delayed to avoid state update conflicts
+                Future.delayed(Duration.zero, () {
+                  Navigator.pushNamed(context, '');
+                });
+              }
             },
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white,
+            unselectedItemColor: Colors.white, 
             showUnselectedLabels: true,
             showSelectedLabels: true,
-            elevation: 0,
+            elevation: 0, 
             items: [
               _buildBottomNavigationBarItem(
-                Icons.home_outlined,
-                Icons.home,
-                'Home',
-                currentIndex == 0,
-              ),
-              _buildBottomNavigationBarItem(
-                Icons.alt_route_outlined,
-                Icons.alt_route,
-                'Tracker',
-                currentIndex == 1,
-              ), // Changed icon for Tracker
-              _buildBottomNavigationBarItem(
-                Icons.announcement_outlined,
-                Icons.announcement,
-                'Issues',
-                currentIndex == 2,
-              ),
-              _buildBottomNavigationBarItem(
-                Icons.assignment_outlined,
-                Icons.assignment,
-                'Report',
-                currentIndex == 3,
-              ),
+                  Icons.home_outlined, Icons.home, 'Home', currentIndex == 0),
+              _buildBottomNavigationBarItem(Icons.fire_truck_outlined,
+                  Icons.fire_truck, 'Truck', currentIndex == 1),
+              _buildBottomNavigationBarItem(Icons.assessment_outlined,
+                  Icons.assessment, 'Cleanliness', currentIndex == 2),
+              _buildBottomNavigationBarItem(Icons.garage_outlined, Icons.garage,
+                  'Breakdown', currentIndex == 3),
             ],
           ),
         ),
@@ -96,14 +91,10 @@ class DriversNavbar extends StatelessWidget {
   }
 
   BottomNavigationBarItem _buildBottomNavigationBarItem(
-    IconData icon,
-    IconData activeIcon,
-    String label,
-    bool isSelected,
-  ) {
+      IconData icon, IconData activeIcon, String label, bool isSelected) {
     return BottomNavigationBarItem(
       icon: Transform.scale(
-        scale: isSelected ? 1.3 : 1.0,
+        scale: isSelected ? 1.3 : 1.0, 
         child: Icon(isSelected ? activeIcon : icon),
       ),
       label: label,
