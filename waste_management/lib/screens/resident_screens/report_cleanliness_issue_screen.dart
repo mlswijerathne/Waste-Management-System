@@ -9,7 +9,7 @@ import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 
 class ReportCleanlinessIssuePage extends StatefulWidget {
-  const ReportCleanlinessIssuePage({Key? key}) : super(key: key);
+  const ReportCleanlinessIssuePage({super.key});
 
   @override
   _ReportCleanlinessIssuePageState createState() => _ReportCleanlinessIssuePageState();
@@ -222,7 +222,7 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
       // Add prefix to base64 image if needed
       String formattedBase64 = _base64Image!;
       if (!formattedBase64.startsWith('data:image')) {
-        formattedBase64 = 'data:image/jpeg;base64,' + formattedBase64;
+        formattedBase64 = 'data:image/jpeg;base64,$formattedBase64';
       }
 
       // Submit the issue with base64 image directly to Firestore

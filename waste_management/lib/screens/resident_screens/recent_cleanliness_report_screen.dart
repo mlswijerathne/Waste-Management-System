@@ -5,7 +5,7 @@ import 'package:waste_management/service/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class RecentReportsRequestsPage extends StatefulWidget {
-  const RecentReportsRequestsPage({Key? key}) : super(key: key);
+  const RecentReportsRequestsPage({super.key});
 
   @override
   _RecentReportsRequestsPageState createState() =>

@@ -37,18 +37,16 @@ class MyApp extends StatelessWidget {
       routes: {
         '/breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
         '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
-        '/forget_passowrd' : (context) => ForgotPasswordScreen(), //Route for ForgotPasswordScreen
+        '/forget_passowrd' : (context) =>const ForgotPasswordScreen(), //Route for ForgotPasswordScreen
         '/sign_in_page' : (context) => const SignInPage(), //Route for SignInPage
-        '/sign_up_page' : (context) => const SignupScreen(),//signin page screen
-        '/loading_screen' : (context) => LoadingScreen(),//Route for LoadingScreen
+        '/sign_up_page' : (context) => const SignupScreen(),//Route for SignupScreen
+        '/loading_screen' : (context) =>const LoadingScreen(),//Route for LoadingScreen
         '/admin_home' : (context) => const AdminHome(),//Route for AdminHome
         '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
-        '/resident_detail':(context)=>  DetailPage(),//Route for DetailPage
-        '/resident_detailtwo' : (context)=> DetailTwoScreen(),//Route for DetailTwoScreen
-        '/resident_profile' : (context) => ResidentProfileScreen(), //route resident profile
-        '/cleanless_issue' : (context) => ReportCleanlinessIssuePage(),//Route for ReportCleanlinessIssuePage
-        '/request_garbage' : (context) => RequestSpecialGarbageLocationScreen(),//route for RequestSpecialGarbageLocationScreen
-        '/driver_profile' : (context) => DriverProfileScreen(), //route driver profile
+        '/resident_detail':(context)=> const DetailPage(),//Route for DetailPage
+        '/resident_detailtwo' : (context)=> const DetailTwoScreen(),//Route for DetailTwoScreen
+        '/resident_profile' : (context) =>const ResidentProfileScreen(), //Route for Resident Profile
+        '/driver_profile' : (context) => DriverProfileScreen(), //Route Driver Profile
         '/report_cleanliness_issue' : (context) => ReportCleanlinessIssuePage(), //Route for ReportCleanlinessIssuePage
         '/request_special_garbage_location' : (context) => RequestSpecialGarbageLocationScreen(),//Route for RequestSpecialGarbageLocationScreen
         '/recent_report_and_request' : (context) => RecentReportsRequestsPage(),//Route for RecentReportsRequestsPage
