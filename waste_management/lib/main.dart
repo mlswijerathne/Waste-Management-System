@@ -7,19 +7,18 @@ import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
-import 'package:waste_management/screens/driver_screens/breakdown_screen.dart';
+import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_profile_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_route_list_screen.dart';
-import 'package:waste_management/screens/resident_screens/active_route_screen.dart';
-import 'package:waste_management/screens/resident_screens/report_cleanliness_issue_screen.dart';
-import 'package:waste_management/screens/resident_screens/request_special_garbage_location_screen.dart';
-import 'package:waste_management/screens/resident_screens/recent_cleanliness_report_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_active_route_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_report_cleanliness_issue_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_recent_cleanliness_report_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident-detailtwo_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_detail_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_home_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_profile_screen.dart';
-import 'package:waste_management/screens/resident_screens/route_details_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_route_details_screen.dart';
 import './utils/theme.dart';
 
 void main() async {
@@ -52,7 +51,7 @@ class MyApp extends StatelessWidget {
         '/resident_profile' : (context) =>const ResidentProfileScreen(), //Route for Resident Profile
         '/driver_profile' : (context) => DriverProfileScreen(), //Route Driver Profile
         '/report_cleanliness_issue' : (context) => ReportCleanlinessIssuePage(), //Route for ReportCleanlinessIssuePage
-        '/request_special_garbage_location' : (context) => RequestSpecialGarbageLocationScreen(),//Route for RequestSpecialGarbageLocationScreen
+        
         '/recent_report_and_request' : (context) => RecentReportsRequestsPage(),//Route for RecentReportsRequestsPage
         '/admin_create_route' : (context) => AdminRouteCreationScreen(),//Route for AdminCreateRouteScreen
         '/admin_route_list' : (context) => AdminRouteListScreen(),//Route for AdminRouteListScreen

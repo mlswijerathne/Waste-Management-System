@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'package:waste_management/models/routeModel.dart';
-import 'package:waste_management/screens/resident_screens/route_details_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_route_details_screen.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:location/location.dart';
 import 'package:permission_handler/permission_handler.dart' as permission;
