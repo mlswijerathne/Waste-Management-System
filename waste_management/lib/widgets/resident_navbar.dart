@@ -39,6 +39,13 @@ class ResidentNavbar extends StatelessWidget {
             onTap: (index) {
               // First update the current index
               onTap(index);
+
+              if (index == 0) {
+                // Use Future.delayed to avoid state update conflicts
+                Future.delayed(Duration.zero, () {
+                  Navigator.pushNamed(context, '/active_route_screen');
+                });
+              }
               
               if (index == 1) {
                 // Use Future.delayed to avoid state update conflicts
