@@ -266,6 +266,14 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
       appBar: AppBar(
         title: const Text('Report Cleanliness Issue'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list), // Icon for the report list
+            onPressed: () {
+              Navigator.pushNamed(context, '/recent_report_and_request'); // Navigate to the route
+            },
+          ),
+        ],
       ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF59A867)))

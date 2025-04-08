@@ -106,4 +106,4 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 flutter_icons:
   android: true
-  image_path: "assets/image/appIcon2.png"
+  image_path: "assets/image/appIcon4.jpg"

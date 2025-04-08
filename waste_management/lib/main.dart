@@ -11,6 +11,7 @@ import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.d
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_profile_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_route_list_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_Location_picker_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_active_route_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_report_cleanliness_issue_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_recent_cleanliness_report_screen.dart';
@@ -57,6 +58,7 @@ class MyApp extends StatelessWidget {
         '/admin_route_list' : (context) => AdminRouteListScreen(),//Route for AdminRouteListScreen
         '/driver_route_list' : (context) => DriverRouteListScreen(),//Route for DriverRouteSelectionScreen
         '/active_route_screen' : (context) => ResidentActiveRoutesScreen(),//Route for ActiveRouteScreen
+        '/resident_location_picker_screen' : (context) => ResidentLocationPickerScreen(),//Route for ResidentRouteDetailsScreen
         
         
     

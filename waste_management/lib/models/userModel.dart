@@ -6,6 +6,8 @@ class UserModel {
   final String address;
   final String contactNumber; // Must have exactly 10 digits
   final String email;
+  final double? latitude;    // New field for location
+  final double? longitude; 
 
 
   UserModel({
@@ -16,6 +18,8 @@ class UserModel {
     required this.address,
     required this.contactNumber,
     required this.email,
+    this.latitude,   // Optional during creation
+    this.longitude, 
     
   }) {
     // Validate contact number
@@ -41,6 +45,8 @@ class UserModel {
       address: map['address'] ?? '',
       contactNumber: map['contactNumber'] ?? '',
       email: map['email'] ?? '',
+      latitude: map['latitude'],
+      longitude: map['longitude'],
    
     );
   }
@@ -54,6 +60,8 @@ class UserModel {
       'address': address,
       'contactNumber': contactNumber,
       'email': email,
+      'latitude': latitude,
+      'longitude': longitude,
     
     };
   }

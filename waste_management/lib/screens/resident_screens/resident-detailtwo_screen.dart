@@ -72,7 +72,7 @@ class DetailTwoScreen extends StatelessWidget {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/resident_home');
+                    Navigator.pushNamed(context, '/resident_location_picker_screen');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF59A867),

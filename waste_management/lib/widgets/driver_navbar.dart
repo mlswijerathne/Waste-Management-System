@@ -46,6 +46,12 @@ class DriversNavbar extends StatelessWidget {
                   Navigator.pushNamed(context, '/driver_route_list');
                 });
               }
+              if (index == 2) {
+                // Use Future.delayed to avoid state update conflicts
+                Future.delayed(Duration.zero, () {
+                  Navigator.pushNamed(context, '/breakdown_screen');
+                });
+              }
               // Then navigate to the corresponding screen
               if (index == 3) {
                 // Use Future.delayed to avoid state update conflicts

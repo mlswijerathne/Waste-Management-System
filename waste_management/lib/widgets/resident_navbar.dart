@@ -43,21 +43,21 @@ class ResidentNavbar extends StatelessWidget {
               if (index == 0) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/active_route_screen');
+                  Navigator.pushNamed(context, '/resident_home');
                 });
               }
               
               if (index == 1) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/report_cleanliness_issue');
+                  Navigator.pushNamed(context, '/recent_report_and_request');
                 });
               }
 
               if (index == 2) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/recent_report_and_request');
+                  Navigator.pushNamed(context, '');
                 });
               }
               if (index == 3) {

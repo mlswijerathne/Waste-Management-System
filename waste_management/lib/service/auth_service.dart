@@ -21,6 +21,21 @@ class AuthService {
     }
   }
 
+  //get user location
+  Future<bool> updateUserLocation(String userId, double latitude, double longitude) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'latitude': latitude,
+        'longitude': longitude,
+      });
+      return true;
+    } catch (e) {
+      print('Error updating user location: $e');
+      return false;
+    }
+  }
+
+
   // Get current user data
   Future<UserModel?> getCurrentUser() async {
     try {
@@ -247,6 +262,51 @@ class AuthService {
       }
       
       return {'email': null, 'password': null};
+    }
+
+
+
+    // Update user profile with location
+    Future<UserModel?> updateUserProfile({
+      required String userId,
+      String? name,
+      String? address,
+      String? contactNumber,
+      double? latitude,
+      double? longitude,
+    }) async {
+      try {
+        Map<String, dynamic> updateData = {};
+        
+        if (name != null) updateData['name'] = name;
+        if (address != null) updateData['address'] = address;
+        if (contactNumber != null) {
+          // Validate contact number
+          if (contactNumber.length != 10 ||
+              !RegExp(r'^[0-9]+$').hasMatch(contactNumber)) {
+            throw ArgumentError('Contact number must be exactly 10 digits.');
+          }
+          updateData['contactNumber'] = contactNumber;
+        }
+        if (latitude != null) updateData['latitude'] = latitude;
+        if (longitude != null) updateData['longitude'] = longitude;
+        
+        // Only update if we have data to update
+        if (updateData.isNotEmpty) {
+          await _firestore.collection('users').doc(userId).update(updateData);
+          
+          // Get updated user data
+          DocumentSnapshot doc = await _firestore.collection('users').doc(userId).get();
+          if (doc.exists) {
+            return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+          }
+        }
+        
+        return null;
+      } catch (e) {
+        print('Error updating user profile: $e');
+        rethrow;
+      }
     }
   
   // Initialize admin account
