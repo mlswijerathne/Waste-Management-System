@@ -8,6 +8,7 @@ import 'package:waste_management/screens/city_management_screens/admin_cleanline
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_breakdown_list.dart';
 import 'package:waste_management/screens/driver_screens/driver_cleanliness_issue_list.dart';
 import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
@@ -67,7 +68,7 @@ class MyApp extends StatelessWidget {
         '/driver_cleanliness_issue_list' : (context) => DriverCleanlinessIssueListScreen(),//Route for DriverCleanlinessIssueListScreen
         '/resident_notification_screen' : (context) => ResidentNotificationScreen(),//Route for ResidentNotificationScreen
     
-
+        '/admin_breakdown' : (context) => AdminBreakdownListScreen(),//Route for AdminBreakdownListScreen
         
        
       },
