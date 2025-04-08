@@ -4,11 +4,13 @@ import 'package:waste_management/screens/auth/forget_password_screen.dart';
 import 'package:waste_management/screens/auth/loading_screen.dart';
 import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_assign_history_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_cleanliness_issue_list_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_breakdown_list.dart';
+import 'package:waste_management/screens/city_management_screens/admin_special_garbage_issue_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_cleanliness_issue_list.dart';
 import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
@@ -69,7 +71,8 @@ class MyApp extends StatelessWidget {
         '/resident_notification_screen' : (context) => ResidentNotificationScreen(),//Route for ResidentNotificationScreen
     
         '/admin_breakdown' : (context) => AdminBreakdownListScreen(),//Route for AdminBreakdownListScreen
-        
+        '/admin_special_garbage_requests' : (context) => AdminSpecialGarbageIssuesScreen(), //Route for AdminSpecialGarbageIssuesScreen
+        '/admin_history' : (context) => AdminAssignedRequestsHistoryScreen(), //Route for AdminAssignedRequestsHistoryScreen
        
       },
     );

@@ -75,7 +75,7 @@ class _AdminHomeState extends State<AdminHome> {
                         description: 'Assign routes to drivers',
                         
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/admin_route_list');
                         },
                         color: const Color(0xFF59A867),
                       ),
@@ -84,7 +84,7 @@ class _AdminHomeState extends State<AdminHome> {
                         title: 'Special Gabage Request',
                         description: 'Manage special garbage requests',
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/admin_special_garbage_requests');
                         },
                         color: Colors.orange,
                       ),

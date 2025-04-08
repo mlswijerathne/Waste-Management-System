@@ -63,7 +63,7 @@ class AdminNavbar extends StatelessWidget {
               if (index == 3) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '');
+                  Navigator.pushNamed(context, '/admin_history');
                 });
               }
             },

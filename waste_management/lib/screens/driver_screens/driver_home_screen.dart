@@ -74,7 +74,7 @@ class _DriverHomeState extends State<DriverHome> {
                         title: 'Select Route ',
                         description: 'Select your route for the day',
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/driver_route_list');
                         },
                         color: const Color(0xFF59A867),
                       ),
