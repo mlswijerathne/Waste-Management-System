@@ -57,7 +57,7 @@ class ResidentNavbar extends StatelessWidget {
               if (index == 2) {
                 // Use Future.delayed to avoid state update conflicts
                 Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '');
+                  Navigator.pushNamed(context, '/resident_notification_screen');
                 });
               }
               if (index == 3) {

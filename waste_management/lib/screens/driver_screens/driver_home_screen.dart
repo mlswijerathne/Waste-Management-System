@@ -83,7 +83,7 @@ class _DriverHomeState extends State<DriverHome> {
                         title: 'Cleanliness Issues',
                         description: 'Cleanliness issues in your area',
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/driver_cleanliness_issue_list');
                         },
                         color: Colors.orange,
                       ),

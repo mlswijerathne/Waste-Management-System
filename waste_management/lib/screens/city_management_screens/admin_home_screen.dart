@@ -102,7 +102,7 @@ class _AdminHomeState extends State<AdminHome> {
                         title: 'Resident Cleanliness Issues',
                         description: 'View cleanliness issues reported by residents',
                         onTap: () {
-                          _showWasteInfoDialog(context);
+                          Navigator.pushNamed(context, '/admin_cleanliness_issue_list');
                         },
                         color: Colors.purple,
                       ),

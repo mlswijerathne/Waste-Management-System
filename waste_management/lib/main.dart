@@ -4,15 +4,18 @@ import 'package:waste_management/screens/auth/forget_password_screen.dart';
 import 'package:waste_management/screens/auth/loading_screen.dart';
 import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_cleanliness_issue_list_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
+import 'package:waste_management/screens/driver_screens/driver_cleanliness_issue_list.dart';
 import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_profile_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_route_list_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_Location_picker_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_active_route_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_notification_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_report_cleanliness_issue_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_recent_cleanliness_report_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident-detailtwo_screen.dart';
@@ -60,7 +63,9 @@ class MyApp extends StatelessWidget {
         '/active_route_screen' : (context) => ResidentActiveRoutesScreen(),//Route for ActiveRouteScreen
         '/resident_location_picker_screen' : (context) => ResidentLocationPickerScreen(),//Route for ResidentRouteDetailsScreen
         
-        
+        '/admin_cleanliness_issue_list' : (context) => AdminCleanlinessIssueListScreen(),//Route for AdminCleanlinessIssueListScreen
+        '/driver_cleanliness_issue_list' : (context) => DriverCleanlinessIssueListScreen(),//Route for DriverCleanlinessIssueListScreen
+        '/resident_notification_screen' : (context) => ResidentNotificationScreen(),//Route for ResidentNotificationScreen
     
 
         
