@@ -270,10 +270,10 @@ class _ResidentHomeState extends State<ResidentHome> {
                       ),
                       _ActionCard(
                         icon: Icons.info,
-                        title: 'Waste Info',
+                        title: 'request special garbadge ',
                         description: 'Learn about waste types and disposal',
                         onTap: () {
-                          _showWasteInfoDialog(context);
+                          Navigator.pushNamed(context, '/resident_special_garbage_request_screen');
                         },
                         color: Colors.purple,
                       ),

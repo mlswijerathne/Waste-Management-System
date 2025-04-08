@@ -26,6 +26,7 @@ import 'package:waste_management/screens/resident_screens/resident_detail_screen
 import 'package:waste_management/screens/resident_screens/resident_home_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_profile_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_route_details_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_special_garbage_request_screen.dart';
 import './utils/theme.dart';
 
 void main() async {
@@ -73,6 +74,8 @@ class MyApp extends StatelessWidget {
         '/admin_breakdown' : (context) => AdminBreakdownListScreen(),//Route for AdminBreakdownListScreen
         '/admin_special_garbage_requests' : (context) => AdminSpecialGarbageIssuesScreen(), //Route for AdminSpecialGarbageIssuesScreen
         '/admin_history' : (context) => AdminAssignedRequestsHistoryScreen(), //Route for AdminAssignedRequestsHistoryScreen
+
+        '/resident_special_garbage_request_screen' :(context) =>SpecialGarbageRequestsScreen(), //special garbge location
        
       },
     );
