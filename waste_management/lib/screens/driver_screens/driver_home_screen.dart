@@ -101,7 +101,7 @@ class _DriverHomeState extends State<DriverHome> {
                         title: 'Report Breakdown',
                         description: 'Report vehicle breakdowns',
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/breakdown_screen');
                         },
                         color: Colors.purple,
                       ),

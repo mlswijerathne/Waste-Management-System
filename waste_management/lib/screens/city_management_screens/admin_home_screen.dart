@@ -93,7 +93,7 @@ class _AdminHomeState extends State<AdminHome> {
                         title: 'Driver Brekdown Issues',
                         description: 'View driver breakdown issues', 
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/admin_breakdown');
                         },
                         color: Colors.blue,
                       ),
