@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:waste_management/widgets/resident_navbar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:waste_management/widgets/resident_navbar.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/models/userModel.dart';
 
@@ -17,10 +17,11 @@ class _ResidentHomeState extends State<ResidentHome> {
   UserModel? _currentUser;
   bool _isLoading = true;
   String _errorMessage = '';
-  
+
   // Default location (Sri Lanka center)
   LatLng _userLocation = const LatLng(7.8731, 80.7718);
   Set<Marker> _markers = {};
+  GoogleMapController? _mapController;
 
   final List<Widget> _pages = [
     const Center(child: Text('Home Page')),
@@ -34,53 +35,72 @@ class _ResidentHomeState extends State<ResidentHome> {
     super.initState();
     _fetchUserLocation();
   }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant ResidentHome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh location when widget updates
+    _fetchUserLocation();
+  }
   
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh location data when screen is focused
-    _fetchUserLocation();
+    // This will get called when you navigate back from another screen
+    // Using a flag to prevent multiple fetches
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _fetchUserLocation();
+      }
+    });
   }
 
-  // Separate function to fetch user location
   Future<void> _fetchUserLocation() async {
+    if (!mounted) return;
+    
     try {
       setState(() => _isLoading = true);
       
-      // Get current user
+      // Get fresh user data from the database
       _currentUser = await _authService.getCurrentUser();
-      
-      // Add debugging print statements
+
       print('Current user data: ${_currentUser?.toMap()}');
       print('Latitude: ${_currentUser?.latitude}, Longitude: ${_currentUser?.longitude}');
-      
-      if (_currentUser != null && 
-          _currentUser!.latitude != null && 
+
+      if (_currentUser != null &&
+          _currentUser!.latitude != null &&
           _currentUser!.longitude != null) {
-        
-        // Set user location
-        _userLocation = LatLng(
-          _currentUser!.latitude!,
-          _currentUser!.longitude!
-        );
-        
-        // Add marker
-        _markers = {
-          Marker(
-            markerId: const MarkerId('userLocation'),
-            position: _userLocation,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-            infoWindow: InfoWindow(
-              title: 'Your Location',
-              snippet: _currentUser!.address ?? 'Home',
-            ),
-          ),
-        };
-        
+        // If we have location in the database, use it
         setState(() {
+          _userLocation = LatLng(
+            _currentUser!.latitude!,
+            _currentUser!.longitude!,
+          );
+
+          _markers = {
+            Marker(
+              markerId: const MarkerId('userLocation'),
+              position: _userLocation,
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+              infoWindow: InfoWindow(
+                title: 'Your Location',
+                snippet: _currentUser!.address ?? 'Home',
+              ),
+            ),
+          };
+
           _isLoading = false;
           _errorMessage = '';
         });
+
+        // Move camera to the user location if map is already initialized
+        _moveCameraToUserLocation();
       } else {
         setState(() {
           _isLoading = false;
@@ -88,10 +108,12 @@ class _ResidentHomeState extends State<ResidentHome> {
         });
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Error loading location: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error loading location: $e';
+        });
+      }
       print('Error fetching location: $e');
     }
   }
@@ -100,22 +122,29 @@ class _ResidentHomeState extends State<ResidentHome> {
     setState(() {
       _currentIndex = index;
     });
+    
+    // Refresh location when returning to home tab
+    if (index == 0) {
+      _fetchUserLocation();
+    }
   }
 
-  void _showWasteInfoDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Waste Information'),
-        content: const Text('Learn about different types of waste and proper disposal methods.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+  void _moveCameraToUserLocation() {
+    if (_mapController != null && 
+        _currentUser?.latitude != null && 
+        _currentUser?.longitude != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(_currentUser!.latitude!, _currentUser!.longitude!),
+            zoom: 15,
           ),
-        ],
-      ),
-    );
+        ),
+      );
+      print("Camera moved to user location");
+    } else {
+      print("MapController not ready or location is null");
+    }
   }
 
   @override
@@ -128,12 +157,12 @@ class _ResidentHomeState extends State<ResidentHome> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          // Home Page with Quick Actions and Map Widget
+          // Home Page
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Simple Map Widget
+                // Map Widget
                 Container(
                   margin: const EdgeInsets.all(16.0),
                   height: 200,
@@ -146,7 +175,6 @@ class _ResidentHomeState extends State<ResidentHome> {
                     borderRadius: BorderRadius.circular(12),
                     child: Stack(
                       children: [
-                        // Map Widget
                         GoogleMap(
                           initialCameraPosition: CameraPosition(
                             target: _userLocation,
@@ -158,11 +186,13 @@ class _ResidentHomeState extends State<ResidentHome> {
                           mapToolbarEnabled: false,
                           compassEnabled: false,
                           onMapCreated: (controller) {
-                            // Map is created
+                            setState(() {
+                              _mapController = controller;
+                              // Move camera once map is created
+                              _moveCameraToUserLocation();
+                            });
                           },
                         ),
-                        
-                        // Loading indicator
                         if (_isLoading)
                           Container(
                             color: Colors.white.withOpacity(0.7),
@@ -170,8 +200,6 @@ class _ResidentHomeState extends State<ResidentHome> {
                               child: CircularProgressIndicator(),
                             ),
                           ),
-                        
-                        // Error message
                         if (_errorMessage.isNotEmpty)
                           Container(
                             color: Colors.white.withOpacity(0.7),
@@ -184,35 +212,65 @@ class _ResidentHomeState extends State<ResidentHome> {
                               ),
                             ),
                           ),
-                          
-                        // Edit location button
                         Positioned(
                           bottom: 10,
                           right: 10,
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.pushNamed(context, '/resident_location_picker_screen')
-                                .then((_) => _fetchUserLocation());
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 5,
-                                    spreadRadius: 1,
+                          child: Row(
+                            children: [
+                              // Refresh location button
+                              InkWell(
+                                onTap: _fetchUserLocation,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 5,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                  child: const Icon(
+                                    Icons.refresh,
+                                    color: Color(0xFF59A867),
+                                    size: 24,
+                                  ),
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.edit,
-                                color: Color(0xFF59A867),
-                                size: 24,
+                              // Edit location button
+                              InkWell(
+                                onTap: () {
+                                  Navigator.pushNamed(context, '/resident_location_picker_screen')
+                                      .then((_) {
+                                        // Force refresh when returning from location picker
+                                        _fetchUserLocation();
+                                      });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 5,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit_location,
+                                    color: Color(0xFF59A867),
+                                    size: 24,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ],
@@ -220,7 +278,7 @@ class _ResidentHomeState extends State<ResidentHome> {
                   ),
                 ),
 
-                // Quick Actions Title
+                // Quick Actions
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
@@ -230,8 +288,6 @@ class _ResidentHomeState extends State<ResidentHome> {
                         ),
                   ),
                 ),
-
-                // Action Cards
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: GridView.count(
@@ -245,36 +301,28 @@ class _ResidentHomeState extends State<ResidentHome> {
                         icon: Icons.map,
                         title: 'Active Routes',
                         description: 'Track waste collection in real-time',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/active_route_screen');
-                        },
+                        onTap: () => Navigator.pushNamed(context, '/active_route_screen'),
                         color: const Color(0xFF59A867),
                       ),
                       _ActionCard(
                         icon: Icons.report_problem,
                         title: 'Report Issue',
                         description: 'Report cleanliness issues in your area',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/report_cleanliness_issue');
-                        },
+                        onTap: () => Navigator.pushNamed(context, '/report_cleanliness_issue'),
                         color: Colors.orange,
                       ),
                       _ActionCard(
                         icon: Icons.history,
                         title: 'Recent Reports',
                         description: 'Check your recent report status',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/recent_report_and_request');
-                        },
+                        onTap: () => Navigator.pushNamed(context, '/recent_report_and_request'),
                         color: Colors.blue,
                       ),
                       _ActionCard(
                         icon: Icons.info,
-                        title: 'request special garbadge ',
+                        title: 'Request Special Garbage',
                         description: 'Learn about waste types and disposal',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/resident_special_garbage_request_screen');
-                        },
+                        onTap: () => Navigator.pushNamed(context, '/resident_special_garbage_request_screen'),
                         color: Colors.purple,
                       ),
                     ],
@@ -293,8 +341,6 @@ class _ResidentHomeState extends State<ResidentHome> {
                         ),
                   ),
                 ),
-
-                // Tip Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Container(
@@ -320,11 +366,7 @@ class _ResidentHomeState extends State<ResidentHome> {
                             color: const Color(0xFF59A867).withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.eco,
-                            color: Color(0xFF59A867),
-                            size: 28,
-                          ),
+                          child: const Icon(Icons.eco, color: Color(0xFF59A867), size: 28),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -342,10 +384,7 @@ class _ResidentHomeState extends State<ResidentHome> {
                               const SizedBox(height: 4),
                               Text(
                                 'Reduce plastic waste by carrying a reusable water bottle instead of buying single-use plastic bottles.',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 14,
-                                ),
+                                style: TextStyle(color: Colors.grey[700], fontSize: 14),
                               ),
                             ],
                           ),
@@ -359,7 +398,7 @@ class _ResidentHomeState extends State<ResidentHome> {
               ],
             ),
           ),
-          // Other Pages
+          // Other tabs
           const Center(child: Text('Report Page')),
           const Center(child: Text('Notification Page')),
           const Center(child: Text('Profile Page')),
