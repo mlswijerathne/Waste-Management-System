@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,6 +15,537 @@ class RouteService {
   
   // Google Maps Directions API key
   static const String _googleMapsApiKey = 'AIzaSyD00mAQSg43OFLt36seV57ZupP-RLgXtGQ';
+
+
+
+
+
+
+
+    Future<RouteModel> saveScheduledRoute(
+    String name,
+    String description,
+    LatLng start,
+    LatLng end,
+    {
+      String? assignedDriverId,
+      String? driverName,
+      String? driverContact,
+      String? truckId,
+      String scheduleFrequency = 'once',
+      List<int> scheduleDays = const [],
+      TimeOfDay? scheduleStartTime,
+      TimeOfDay? scheduleEndTime,
+      String wasteCategory = 'mixed',
+    }
+  ) async {
+    try {
+      // Get current user ID for permission control
+      final currentUser = await _authService.getCurrentUser();
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Fetch route directions from Google Maps Directions API
+      final directionsResponse = await _fetchRouteDirections(start, end);
+
+      // Calculate total distance
+      double totalDistance = directionsResponse['routes'][0]['legs'][0]['distance']['value'] / 1000;
+
+      // Extract route points and actual direction path
+      List<Map<String, double>> coveragePoints = _extractRouteCoveragePoints(directionsResponse);
+      List<Map<String, double>> actualDirectionPath = _extractActualDirectionPath(directionsResponse);
+
+      // Generate a schedule ID if this is a recurring route
+      String scheduleId = '';
+      if (scheduleFrequency != 'once') {
+        scheduleId = 'schedule_${DateTime.now().millisecondsSinceEpoch}';
+      }
+      
+      // Calculate next scheduled occurrence
+      DateTime? nextScheduledStart = _calculateNextScheduledDate(
+        scheduleFrequency, 
+        scheduleDays, 
+        scheduleStartTime
+      );
+
+      // Create RouteModel
+      final route = RouteModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        description: description,
+        startLat: start.latitude,
+        startLng: start.longitude,
+        endLat: end.latitude,
+        endLng: end.longitude,
+        distance: totalDistance,
+        coveragePoints: coveragePoints,
+        actualDirectionPath: actualDirectionPath,
+        createdAt: DateTime.now(),
+        isActive: false,
+        isPaused: false,
+        isCancelled: false,
+        createdBy: currentUser.uid,
+        assignedDriverId: assignedDriverId,
+        driverName: driverName,
+        driverContact: driverContact,
+        truckId: truckId,
+        // New scheduling fields
+        scheduleFrequency: scheduleFrequency,
+        scheduleDays: scheduleDays,
+        scheduleStartTime: scheduleStartTime ?? TimeOfDay(hour: 0, minute: 0),
+        scheduleEndTime: scheduleEndTime ?? TimeOfDay(hour: 0, minute: 0),
+        wasteCategory: wasteCategory,
+        scheduleId: scheduleId,
+        nextScheduledStart: nextScheduledStart,
+      );
+
+      // Save to Firestore
+      await _firestore.collection('waste_routes').doc(route.id).set(route.toMap());
+
+      // Initialize route progress data
+      await _firestore.collection('route_progress').doc(route.id).set({
+        'completionPercentage': 0.0,
+        'totalEstimatedTimeMinutes': 0.0,
+        'remainingTimeMinutes': 0.0,
+      });
+
+      return route;
+    } catch (e) {
+      print('Error saving scheduled route: $e');
+      throw Exception('Failed to save scheduled route: $e');
+    }
+  }
+  
+  // Calculate the next scheduled date based on frequency and days
+  DateTime? _calculateNextScheduledDate(
+    String frequency, 
+    List<int> days, 
+    TimeOfDay? startTime
+  ) {
+    if (frequency == 'once' || days.isEmpty || startTime == null) {
+      return null;
+    }
+    
+    final now = DateTime.now();
+    final todayWeekday = now.weekday % 7; // Convert to 0-6 range where 0 is Sunday
+    
+    // Sort days to find the next available day
+    final sortedDays = List<int>.from(days)..sort();
+    
+    DateTime nextDate;
+    
+    // Find the next valid day
+    int daysToAdd = 0;
+    bool foundDay = false;
+    
+    // Check if we have a day later this week
+    for (final day in sortedDays) {
+      if (day > todayWeekday || 
+         (day == todayWeekday && 
+          (startTime.hour > now.hour || 
+           (startTime.hour == now.hour && startTime.minute > now.minute)))) {
+        daysToAdd = day - todayWeekday;
+        foundDay = true;
+        break;
+      }
+    }
+    
+    // If no day found later this week, go to next week
+    if (!foundDay) {
+      daysToAdd = 7 - todayWeekday + sortedDays.first;
+    }
+    
+    // Calculate next date
+    nextDate = DateTime(
+      now.year, 
+      now.month, 
+      now.day + daysToAdd, 
+      startTime.hour, 
+      startTime.minute
+    );
+    
+    // Adjust for frequency
+    if (frequency == 'biweekly' && nextDate.difference(now).inDays < 14) {
+      nextDate = nextDate.add(Duration(days: 7));
+    } else if (frequency == 'monthly') {
+      // For monthly, set to next month with the same day
+      if (nextDate.difference(now).inDays < 28) {
+        int targetDay = nextDate.day;
+        int targetMonth = nextDate.month + 1;
+        int targetYear = nextDate.year;
+        
+        if (targetMonth > 12) {
+          targetMonth = 1;
+          targetYear++;
+        }
+        
+        // Handle month length issues
+        final daysInMonth = DateTime(targetYear, targetMonth + 1, 0).day;
+        if (targetDay > daysInMonth) {
+          targetDay = daysInMonth;
+        }
+        
+        nextDate = DateTime(
+          targetYear,
+          targetMonth,
+          targetDay,
+          startTime.hour,
+          startTime.minute
+        );
+      }
+    }
+    
+    return nextDate;
+  }
+  
+  // Get driver's routes for specific day of week
+  Future<List<RouteModel>> getDriverRoutesForDay(String driverId, int dayOfWeek) async {
+    try {
+      final snapshot = await _firestore
+          .collection('waste_routes')
+          .where('assignedDriverId', isEqualTo: driverId)
+          .where('isCancelled', isEqualTo: false)
+          .get();
+      
+      List<RouteModel> scheduledRoutes = [];
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data();
+        
+        // Convert timestamps
+        data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
+        data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
+        data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
+        data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
+        data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
+        data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
+        data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
+        
+        // Convert schedule times
+        if (data['scheduleStartTime'] != null) {
+          data['scheduleStartTime'] = {
+            'hour': data['scheduleStartTime']['hour'] ?? 8,
+            'minute': data['scheduleStartTime']['minute'] ?? 0,
+          };
+        }
+        
+        if (data['scheduleEndTime'] != null) {
+          data['scheduleEndTime'] = {
+            'hour': data['scheduleEndTime']['hour'] ?? 17,
+            'minute': data['scheduleEndTime']['minute'] ?? 0,
+          };
+        }
+        
+        // Convert points
+        _convertPointsData(data, 'coveragePoints');
+        _convertPointsData(data, 'actualDirectionPath');
+        
+        final route = RouteModel.fromMap(data);
+        
+        // Check if this route is scheduled for the requested day
+        if (route.scheduleDays.contains(dayOfWeek)) {
+          scheduledRoutes.add(route);
+        }
+      }
+      
+      return scheduledRoutes;
+    } catch (e) {
+      print('Error getting driver routes for day: $e');
+      throw Exception('Failed to load driver routes for day: $e');
+    }
+  }
+  
+  // Get driver's weekly schedule
+  Future<Map<int, List<RouteModel>>> getDriverWeeklySchedule(String driverId) async {
+    Map<int, List<RouteModel>> weeklySchedule = {};
+    
+    // Initialize empty lists for each day
+    for (int i = 0; i < 7; i++) {
+      weeklySchedule[i] = [];
+    }
+    
+    try {
+      final snapshot = await _firestore
+          .collection('waste_routes')
+          .where('assignedDriverId', isEqualTo: driverId)
+          .where('isCancelled', isEqualTo: false)
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data();
+        
+        // Convert timestamps
+        data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
+        data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
+        data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
+        data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
+        data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
+        data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
+        data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
+        
+        // Convert schedule times
+        if (data['scheduleStartTime'] != null) {
+          data['scheduleStartTime'] = {
+            'hour': data['scheduleStartTime']['hour'] ?? 8,
+            'minute': data['scheduleStartTime']['minute'] ?? 0,
+          };
+        }
+        
+        if (data['scheduleEndTime'] != null) {
+          data['scheduleEndTime'] = {
+            'hour': data['scheduleEndTime']['hour'] ?? 17,
+            'minute': data['scheduleEndTime']['minute'] ?? 0,
+          };
+        }
+        
+        // Convert points
+        _convertPointsData(data, 'coveragePoints');
+        _convertPointsData(data, 'actualDirectionPath');
+        
+        final route = RouteModel.fromMap(data);
+        
+        // Add route to each day it's scheduled for
+        for (int day in route.scheduleDays) {
+          weeklySchedule[day]?.add(route);
+        }
+      }
+      
+      // Sort each day's routes by scheduleStartTime
+      weeklySchedule.forEach((day, routes) {
+        routes.sort((a, b) {
+          if (a.scheduleStartTime == null && b.scheduleStartTime == null) {
+            return 0;
+          } else if (a.scheduleStartTime == null) {
+            return 1;
+          } else if (b.scheduleStartTime == null) {
+            return -1;
+          } else {
+            int hourCompare = a.scheduleStartTime.hour.compareTo(b.scheduleStartTime.hour);
+            if (hourCompare != 0) {
+              return hourCompare;
+            } else {
+              return a.scheduleStartTime.minute.compareTo(b.scheduleStartTime.minute);
+            }
+          }
+        });
+      });
+      
+      return weeklySchedule;
+    } catch (e) {
+      print('Error getting driver weekly schedule: $e');
+      throw Exception('Failed to load driver weekly schedule: $e');
+    }
+  }
+  
+  // Get routes by waste category
+  Future<List<RouteModel>> getRoutesByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection('waste_routes')
+          .where('wasteCategory', isEqualTo: category)
+          .orderBy('createdAt', descending: true)
+          .get();
+      
+      List<RouteModel> routes = [];
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data();
+        
+        // Convert timestamps
+        data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
+        data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
+        data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
+        data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
+        data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
+        data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
+        data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
+        
+        // Convert points
+        _convertPointsData(data, 'coveragePoints');
+        _convertPointsData(data, 'actualDirectionPath');
+        
+        routes.add(RouteModel.fromMap(data));
+      }
+      
+      return routes;
+    } catch (e) {
+      print('Error getting routes by category: $e');
+      throw Exception('Failed to load routes by category: $e');
+    }
+  }
+  
+  // Update a route's next scheduled date after completion
+  Future<void> updateNextScheduledDate(String routeId) async {
+    try {
+      // Get the route
+      final route = await getRoute(routeId);
+      if (route == null) {
+        throw Exception('Route not found');
+      }
+      
+      // Only update if it's a recurring route
+      if (route.scheduleFrequency == 'once') {
+        return;
+      }
+      
+      // Calculate next occurrence
+      DateTime? nextOccurrence = _calculateNextScheduledDate(
+        route.scheduleFrequency,
+        route.scheduleDays,
+        route.scheduleStartTime
+      );
+      
+      if (nextOccurrence != null) {
+        await _firestore.collection('waste_routes').doc(routeId).update({
+          'nextScheduledStart': nextOccurrence,
+          'lastCompleted': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      print('Error updating next scheduled date: $e');
+      throw Exception('Failed to update next scheduled date: $e');
+    }
+  }
+  
+  // Complete a route and update scheduling
+  Future<void> completeScheduledRoute(String routeId) async {
+    try {
+      // Mark as completed
+      await completeRoute(routeId);
+      
+      // Update next scheduled date if it's a recurring route
+      await updateNextScheduledDate(routeId);
+    } catch (e) {
+      print('Error completing scheduled route: $e');
+      throw Exception('Failed to complete scheduled route: $e');
+    }
+  }
+  
+  // Get all routes that need to be started today
+  Future<List<RouteModel>> getTodayScheduledRoutes() async {
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(Duration(days: 1));
+      
+      final snapshot = await _firestore
+          .collection('waste_routes')
+          .where('nextScheduledStart', isGreaterThanOrEqualTo: today)
+          .where('nextScheduledStart', isLessThan: tomorrow)
+          .where('isCancelled', isEqualTo: false)
+          .get();
+      
+      List<RouteModel> routes = [];
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data();
+        
+        // Convert timestamps
+        data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
+        data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
+        data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
+        data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
+        data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
+        data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
+        data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
+        
+        // Convert points
+        _convertPointsData(data, 'coveragePoints');
+        _convertPointsData(data, 'actualDirectionPath');
+        
+        routes.add(RouteModel.fromMap(data));
+      }
+      
+      return routes;
+    } catch (e) {
+      print('Error getting today\'s scheduled routes: $e');
+      throw Exception('Failed to load today\'s scheduled routes: $e');
+    }
+  }
+  
+  // Get upcoming routes for next 7 days
+  Future<Map<DateTime, List<RouteModel>>> getUpcomingWeekSchedule() async {
+    Map<DateTime, List<RouteModel>> weekSchedule = {};
+    
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final nextWeek = today.add(Duration(days: 7));
+      
+      final snapshot = await _firestore
+          .collection('waste_routes')
+          .where('nextScheduledStart', isGreaterThanOrEqualTo: today)
+          .where('nextScheduledStart', isLessThan: nextWeek)
+          .where('isCancelled', isEqualTo: false)
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data();
+        
+        // Convert timestamps
+        data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
+        data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
+        data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
+        data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
+        data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
+        data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
+        data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
+        
+        // Convert points
+        _convertPointsData(data, 'coveragePoints');
+        _convertPointsData(data, 'actualDirectionPath');
+        
+        final route = RouteModel.fromMap(data);
+        
+        if (route.nextScheduledStart != null) {
+          // Create date key without time
+          final dateKey = DateTime(
+            route.nextScheduledStart!.year,
+            route.nextScheduledStart!.month,
+            route.nextScheduledStart!.day
+          );
+          
+          if (!weekSchedule.containsKey(dateKey)) {
+            weekSchedule[dateKey] = [];
+          }
+          
+          weekSchedule[dateKey]!.add(route);
+        }
+      }
+      
+      // Sort each day's routes by start time
+      weekSchedule.forEach((date, routes) {
+        routes.sort((a, b) {
+          if (a.nextScheduledStart == null && b.nextScheduledStart == null) {
+            return 0;
+          } else if (a.nextScheduledStart == null) {
+            return 1;
+          } else if (b.nextScheduledStart == null) {
+            return -1;
+          } else {
+            return a.nextScheduledStart!.compareTo(b.nextScheduledStart!);
+          }
+        });
+      });
+      
+      return weekSchedule;
+    } catch (e) {
+      print('Error getting upcoming week schedule: $e');
+      throw Exception('Failed to load upcoming week schedule: $e');
+    }
+  }
+
+
+
+
+
+
 
   // Improved route saving method with detailed directions
   Future<RouteModel> saveRouteWithDirections(
@@ -63,7 +595,7 @@ class RouteService {
         assignedDriverId: assignedDriverId,
         driverName: driverName,
         driverContact: driverContact,
-        truckId: truckId,
+        truckId: truckId, scheduleStartTime: TimeOfDay(hour: 0, minute: 0), scheduleEndTime: TimeOfDay(hour: 0, minute: 0),
       );
 
       // Save to Firestore

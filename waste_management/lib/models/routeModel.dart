@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class RouteModel {
   final String id;
   final String name;
@@ -8,22 +11,30 @@ class RouteModel {
   final double endLng;
   final double distance;
   final List<Map<String, double>> coveragePoints;
-  final List<Map<String, double>> actualDirectionPath; // Added for actual Google directions path
+  final List<Map<String, double>> actualDirectionPath;
   final DateTime createdAt;
   final DateTime? startedAt;
-  final DateTime? pausedAt; // Added for pause functionality
-  final DateTime? resumedAt; // Added to track resume time
+  final DateTime? pausedAt;
+  final DateTime? resumedAt;
   final DateTime? completedAt;
-  final DateTime? cancelledAt; // Added for cancel functionality
+  final DateTime? cancelledAt;
   final bool isActive;
-  final bool isPaused; // Added to track pause state
-  final bool isCancelled; // Added to track cancel state
+  final bool isPaused;
+  final bool isCancelled;
   final String? createdBy;
   final String? assignedDriverId;
-  final String? driverName; // Added for displaying driver details
-  final String? driverContact; // Added for displaying driver details
-  final String? truckId; // Added for truck identification
-  final double? currentProgressPercentage; // Added to track completion percentage
+  final String? driverName;
+  final String? driverContact;
+  final String? truckId;
+  final double? currentProgressPercentage;
+  final String scheduleFrequency;
+  final List<int> scheduleDays;
+  final TimeOfDay scheduleStartTime;
+  final TimeOfDay scheduleEndTime;
+  final String wasteCategory;
+  final String scheduleId;
+  final DateTime? nextScheduledStart;
+  final DateTime? lastCompleted;
 
   RouteModel({
     required this.id,
@@ -51,9 +62,16 @@ class RouteModel {
     this.driverContact,
     this.truckId,
     this.currentProgressPercentage,
+    this.scheduleFrequency = 'once',
+    this.scheduleDays = const [],
+    required this.scheduleStartTime,
+    required this.scheduleEndTime,
+    this.wasteCategory = 'mixed',
+    this.scheduleId = '',
+    this.nextScheduledStart,
+    this.lastCompleted,
   });
 
-  // Convert to map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -81,30 +99,40 @@ class RouteModel {
       'driverContact': driverContact,
       'truckId': truckId,
       'currentProgressPercentage': currentProgressPercentage,
+      'scheduleFrequency': scheduleFrequency,
+      'scheduleDays': scheduleDays,
+      'scheduleStartTime': scheduleStartTime != null ? {'hour': scheduleStartTime.hour, 'minute': scheduleStartTime.minute} : null,
+      'scheduleEndTime': scheduleEndTime != null ? {'hour': scheduleEndTime.hour, 'minute': scheduleEndTime.minute} : null,
+      'wasteCategory': wasteCategory,
+      'scheduleId': scheduleId,
+      'nextScheduledStart': nextScheduledStart,
+      'lastCompleted': lastCompleted,
     };
   }
 
-  // Create from Firestore document
+  static DateTime? parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
+  }
+
   factory RouteModel.fromMap(Map<String, dynamic> map) {
-    // Handle the coveragePoints conversion safely
     List<Map<String, double>> convertedCoveragePoints = [];
     List<Map<String, double>> convertedDirectionPath = [];
-    
+
     if (map['coveragePoints'] != null) {
       final points = map['coveragePoints'] as List<dynamic>;
-      
       convertedCoveragePoints = points.map<Map<String, double>>((point) {
-        // Make sure we're creating a Map<String, double> with explicit conversion
         return {
           'lat': (point['lat'] is num) ? (point['lat'] as num).toDouble() : 0.0,
           'lng': (point['lng'] is num) ? (point['lng'] as num).toDouble() : 0.0,
         };
       }).toList();
     }
-    
+
     if (map['actualDirectionPath'] != null) {
       final points = map['actualDirectionPath'] as List<dynamic>;
-      
       convertedDirectionPath = points.map<Map<String, double>>((point) {
         return {
           'lat': (point['lat'] is num) ? (point['lat'] as num).toDouble() : 0.0,
@@ -112,7 +140,23 @@ class RouteModel {
         };
       }).toList();
     }
-    
+
+    TimeOfDay? startTime;
+    if (map['scheduleStartTime'] != null) {
+      startTime = TimeOfDay(
+        hour: map['scheduleStartTime']['hour'] ?? 8,
+        minute: map['scheduleStartTime']['minute'] ?? 0,
+      );
+    }
+
+    TimeOfDay? endTime;
+    if (map['scheduleEndTime'] != null) {
+      endTime = TimeOfDay(
+        hour: map['scheduleEndTime']['hour'] ?? 17,
+        minute: map['scheduleEndTime']['minute'] ?? 0,
+      );
+    }
+
     return RouteModel(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
@@ -124,12 +168,12 @@ class RouteModel {
       distance: map['distance']?.toDouble() ?? 0.0,
       coveragePoints: convertedCoveragePoints,
       actualDirectionPath: convertedDirectionPath,
-      createdAt: (map['createdAt'] as DateTime?) ?? DateTime.now(),
-      startedAt: map['startedAt'] as DateTime?,
-      pausedAt: map['pausedAt'] as DateTime?,
-      resumedAt: map['resumedAt'] as DateTime?,
-      completedAt: map['completedAt'] as DateTime?,
-      cancelledAt: map['cancelledAt'] as DateTime?,
+      createdAt: parseDateTime(map['createdAt']) ?? DateTime.now(),
+      startedAt: parseDateTime(map['startedAt']),
+      pausedAt: parseDateTime(map['pausedAt']),
+      resumedAt: parseDateTime(map['resumedAt']),
+      completedAt: parseDateTime(map['completedAt']),
+      cancelledAt: parseDateTime(map['cancelledAt']),
       isActive: map['isActive'] ?? false,
       isPaused: map['isPaused'] ?? false,
       isCancelled: map['isCancelled'] ?? false,
@@ -139,10 +183,17 @@ class RouteModel {
       driverContact: map['driverContact'],
       truckId: map['truckId'],
       currentProgressPercentage: map['currentProgressPercentage']?.toDouble(),
+      scheduleFrequency: map['scheduleFrequency'] ?? 'once',
+      scheduleDays: map['scheduleDays'] != null ? List<int>.from(map['scheduleDays']) : [],
+      scheduleStartTime: startTime ?? TimeOfDay(hour: 8, minute: 0),
+      scheduleEndTime: endTime ?? TimeOfDay(hour: 17, minute: 0),
+      wasteCategory: map['wasteCategory'] ?? 'mixed',
+      scheduleId: map['scheduleId'] ?? '',
+      nextScheduledStart: parseDateTime(map['nextScheduledStart']),
+      lastCompleted: parseDateTime(map['lastCompleted']),
     );
   }
-  
-  // Create a copy with updated fields
+
   RouteModel copyWith({
     String? id,
     String? name,
@@ -169,6 +220,14 @@ class RouteModel {
     String? driverContact,
     String? truckId,
     double? currentProgressPercentage,
+    String? scheduleFrequency,
+    List<int>? scheduleDays,
+    TimeOfDay? scheduleStartTime,
+    TimeOfDay? scheduleEndTime,
+    String? wasteCategory,
+    String? scheduleId,
+    DateTime? nextScheduledStart,
+    DateTime? lastCompleted,
   }) {
     return RouteModel(
       id: id ?? this.id,
@@ -196,6 +255,14 @@ class RouteModel {
       driverContact: driverContact ?? this.driverContact,
       truckId: truckId ?? this.truckId,
       currentProgressPercentage: currentProgressPercentage ?? this.currentProgressPercentage,
+      scheduleFrequency: scheduleFrequency ?? this.scheduleFrequency,
+      scheduleDays: scheduleDays ?? this.scheduleDays,
+      scheduleStartTime: scheduleStartTime ?? this.scheduleStartTime,
+      scheduleEndTime: scheduleEndTime ?? this.scheduleEndTime,
+      wasteCategory: wasteCategory ?? this.wasteCategory,
+      scheduleId: scheduleId ?? this.scheduleId,
+      nextScheduledStart: nextScheduledStart ?? this.nextScheduledStart,
+      lastCompleted: lastCompleted ?? this.lastCompleted,
     );
   }
 }

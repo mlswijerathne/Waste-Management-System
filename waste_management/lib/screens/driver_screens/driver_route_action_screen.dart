@@ -3,7 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:waste_management/models/routeModel.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart'; // Add this import
+import 'package:permission_handler/permission_handler.dart';
 
 class DriverRouteDetailScreen extends StatefulWidget {
   final RouteModel route;
@@ -308,12 +308,18 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_route.name),
-        backgroundColor: Colors.green,
+        title: Text(
+          _route.name,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.green[700],
+        elevation: 0,
       ),
       body: Column(
         children: [
+          _buildStatusBar(),
           Expanded(
+            flex: 5,
             child: GoogleMap(
               onMapCreated: (controller) {
                 _mapController = controller;
@@ -346,121 +352,218 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
               zoomControlsEnabled: true,
             ),
           ),
-          _buildRouteInfoSection(),
-          _buildActionButtons(),
+          Expanded(
+            flex: 4,
+            child: _buildRouteInfoSection(),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildActionButtons(),
+    );
+  }
+
+  Widget _buildStatusBar() {
+    return Container(
+      color: _getStatusColor(),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      width: double.infinity,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getStatusIcon(),
+            color: Colors.white,
+            size: 24,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _getStatusText().toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
   }
 
+  IconData _getStatusIcon() {
+    if (_route.isPaused) return Icons.pause_circle_filled;
+    if (_route.completedAt != null) return Icons.check_circle;
+    if (_route.cancelledAt != null) return Icons.cancel;
+    if (_route.isActive) return Icons.directions_car;
+    return Icons.schedule;
+  }
+
   Widget _buildRouteInfoSection() {
+    // Get waste category info
+    Color categoryColor = _route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
+    String categoryText = _route.wasteCategory == 'organic' ? 'ORGANIC WASTE' : 'INORGANIC WASTE';
+    
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
+            color: Colors.grey.withOpacity(0.3),
             spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, -1),
+            blurRadius: 5,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _route.name,
-                style: const TextStyle(
-                  fontSize: 18,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _route.name,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Waste category badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: categoryColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: categoryColor),
+              ),
+              child: Text(
+                categoryText,
+                style: TextStyle(
+                  color: categoryColor,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _getStatusText(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.route, size: 16),
-              const SizedBox(width: 4),
-              Text('Distance: ${_route.distance.toStringAsFixed(1)} km'),
-              const Spacer(),
-              const Icon(Icons.access_time, size: 16),
-              const SizedBox(width: 4),
-              Text(_formatDateTime(_route.startedAt ?? _route.createdAt)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (_route.isActive) ...[
-            Row(
-              children: [
-                const Icon(Icons.trending_up, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  'Progress: ${_route.currentProgressPercentage?.toStringAsFixed(1) ?? '0.0'}%',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
             ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: (_route.currentProgressPercentage ?? 0.0) / 100,
-              backgroundColor: Colors.grey[200],
-              color: Colors.green,
+            const SizedBox(height: 16),
+            _buildInfoRow(Icons.route, 'Distance', '${_route.distance.toStringAsFixed(1)} km'),
+            _buildInfoRow(
+              Icons.access_time, 
+              'Schedule', 
+              '${_formatTime(_route.scheduleStartTime)} - ${_formatTime(_route.scheduleEndTime)}'
             ),
-          ],
-          if (!_locationPermissionGranted) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.yellow[100],
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.orange),
-              ),
-              child: Row(
+            _buildInfoRow(
+              Icons.calendar_today, 
+              'Start Date', 
+              _formatDateTime(_route.startedAt ?? _route.createdAt)
+            ),
+            const SizedBox(height: 16),
+            if (_route.isActive) ...[
+              Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: const Text(
-                      'Location permission is required to track your position during the route.',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      await openAppSettings();
-                    },
-                    child: const Text('SETTINGS'),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  const Icon(Icons.trending_up, size: 22, color: Colors.green),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Progress: ${_route.currentProgressPercentage?.toStringAsFixed(1) ?? '0.0'}%',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: (_route.currentProgressPercentage ?? 0.0) / 100,
+                  backgroundColor: Colors.grey[200],
+                  color: Colors.green,
+                  minHeight: 15,
+                ),
+              ),
+            ],
+            if (!_locationPermissionGranted) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.yellow[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Location Permission Required',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Your location is needed to track route progress.',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await openAppSettings();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                            child: const Text('ENABLE LOCATION'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: Colors.grey[700]),
+          const SizedBox(width: 10),
+          Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[800],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -468,45 +571,60 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
   Widget _buildActionButtons() {
     return Container(
-      padding: const EdgeInsets.all(8),
-      color: Colors.grey[100],
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, -1),
+          ),
+        ],
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           if (!_route.isActive && !_route.isCancelled)
             _buildActionButton(
               icon: _route.completedAt != null ? Icons.refresh : Icons.play_arrow,
-              label: _route.completedAt != null ? 'Restart' : 'Start',
-              color: Colors.green,
+              label: _route.completedAt != null ? 'RESTART' : 'START',
+              color: Colors.green[700]!,
               onPressed: (_isMapReady) ? _startRoute : null,
+              size: 1,
             ),
           if (_route.isActive && !_route.isPaused)
             _buildActionButton(
               icon: Icons.pause,
-              label: 'Pause',
-              color: Colors.orange,
+              label: 'PAUSE',
+              color: Colors.orange[700]!,
               onPressed: _pauseRoute,
+              size: 1,
             ),
           if (_route.isActive && _route.isPaused)
             _buildActionButton(
               icon: Icons.play_arrow,
-              label: 'Resume',
-              color: Colors.green,
+              label: 'RESUME',
+              color: Colors.green[700]!,
               onPressed: _resumeRoute,
+              size: 1,
             ),
           if (_route.isActive)
             _buildActionButton(
-              icon: Icons.check,
-              label: 'Complete',
-              color: Colors.blue,
+              icon: Icons.check_circle,
+              label: 'COMPLETE',
+              color: Colors.blue[700]!,
               onPressed: _completeRoute,
+              size: 1,
             ),
           if (!_route.isCancelled && _route.completedAt == null)
             _buildActionButton(
               icon: Icons.cancel,
-              label: 'Cancel',
-              color: Colors.red,
+              label: 'CANCEL',
+              color: Colors.red[700]!,
               onPressed: _cancelRoute,
+              size: _route.isActive ? 1 : 1,
             ),
         ],
       ),
@@ -518,41 +636,57 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     required String label,
     required Color color,
     required VoidCallback? onPressed,
+    required int size,
   }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 20),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+    return Expanded(
+      flex: size,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: ElevatedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 24),
+          label: Text(
+            label,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            disabledBackgroundColor: Colors.grey,
+          ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        disabledBackgroundColor: Colors.grey,
       ),
     );
   }
 
   String _getStatusText() {
-    if (_route.isPaused) return 'Paused';
-    if (_route.completedAt != null) return 'Completed';
-    if (_route.cancelledAt != null) return 'Cancelled';
-    if (_route.isActive) return 'Active';
-    return 'Not Started';
+    if (_route.isPaused) return 'Route Paused';
+    if (_route.completedAt != null) return 'Route Completed';
+    if (_route.cancelledAt != null) return 'Route Cancelled';
+    if (_route.isActive) return 'Route Active';
+    return 'Ready to Start';
   }
 
   Color _getStatusColor() {
-    if (_route.isPaused) return Colors.orange;
-    if (_route.completedAt != null) return Colors.grey;
-    if (_route.cancelledAt != null) return Colors.red;
-    if (_route.isActive) return Colors.green;
-    return Colors.blue;
+    if (_route.isPaused) return Colors.orange[700]!;
+    if (_route.completedAt != null) return Colors.grey[700]!;
+    if (_route.cancelledAt != null) return Colors.red[700]!;
+    if (_route.isActive) return Colors.green[700]!;
+    return Colors.blue[700]!;
   }
 
   String _formatDateTime(DateTime dateTime) {
     return DateFormat('MMM d, HH:mm').format(dateTime);
+  }
+  
+  String _formatTime(TimeOfDay time) {
+    final now = DateTime.now();
+    final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return DateFormat('h:mm a').format(dt);
   }
 
   @override

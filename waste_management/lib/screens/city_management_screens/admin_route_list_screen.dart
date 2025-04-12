@@ -1,4 +1,3 @@
-// admin_route_list_screen.dart (updated)
 import 'package:flutter/material.dart';
 import 'package:waste_management/models/routeModel.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_detail_screen.dart';
@@ -18,6 +17,26 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    _loadRoutes();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -26,9 +45,7 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              Navigator.pushNamed(context, '/admin_create_route').then((_) {
-                setState(() {}); // Refresh the list after creating a new route
-              });
+              Navigator.pushNamed(context, '/admin_create_route').then((_) => setState(() {}));
             },
           ),
         ],
@@ -59,15 +76,10 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
 
         final routes = snapshot.data!;
         return RefreshIndicator(
-          onRefresh: () async {
-            setState(() {});
-          },
+          onRefresh: () async => setState(() {}),
           child: ListView.builder(
             itemCount: routes.length,
-            itemBuilder: (context, index) {
-              final route = routes[index];
-              return _buildRouteCard(route);
-            },
+            itemBuilder: (context, index) => _buildRouteCard(routes[index]),
           ),
         );
       },
@@ -77,10 +89,9 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
   Widget _buildRouteCard(RouteModel route) {
     final dateFormat = DateFormat('MMM dd, yyyy - hh:mm a');
     final createdDate = dateFormat.format(route.createdAt);
-    
+
     Color statusColor = Colors.grey;
     String statusText = 'Inactive';
-    
     if (route.isCancelled) {
       statusColor = Colors.red;
       statusText = 'Cancelled';
@@ -88,13 +99,8 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
       statusColor = Colors.green;
       statusText = 'Completed';
     } else if (route.isActive) {
-      if (route.isPaused) {
-        statusColor = Colors.amber;
-        statusText = 'Paused';
-      } else {
-        statusColor = Colors.blue;
-        statusText = 'Active';
-      }
+      statusColor = route.isPaused ? Colors.amber : Colors.blue;
+      statusText = route.isPaused ? 'Paused' : 'Active';
     } else if (route.assignedDriverId != null) {
       statusColor = Colors.purple;
       statusText = 'Assigned';
@@ -104,13 +110,10 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 3,
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => RouteDetailScreen(routeId: route.id),
-            ),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => RouteDetailScreen(routeId: route.id)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -122,10 +125,7 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
                   Expanded(
                     child: Text(
                       route.name,
-                      style: const TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold
-                      ),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -135,10 +135,7 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
                       color: statusColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      statusText,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
+                    child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 12)),
                   ),
                 ],
               ),
@@ -149,27 +146,25 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${route.distance.toStringAsFixed(1)} km',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
+                  Text('${route.distance.toStringAsFixed(1)} km'),
+                  const SizedBox(width: 16),
                   Text('Created: $createdDate'),
                 ],
               ),
+              const SizedBox(height: 4),
+              Text('Category: ${route.wasteCategory.toUpperCase()}'),
+              const SizedBox(height: 4),
+              Text('Schedule: ${route.scheduleFrequency.toUpperCase()}'),
               if (route.assignedDriverId != null && route.driverName != null) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     const Icon(Icons.person, size: 16, color: Colors.blue),
                     const SizedBox(width: 4),
-                    Text(
-                      'Driver: ${route.driverName}',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
+                    Text('Driver: ${route.driverName}'),
                   ],
                 ),
               ],
@@ -188,25 +183,5 @@ class _AdminRouteListScreenState extends State<AdminRouteListScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRoutes();
-  }
-
-  Future<void> _loadRoutes() async {
-    try {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = null;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = e.toString();
-      });
-    }
   }
 }
