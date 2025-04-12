@@ -14,7 +14,7 @@ class AdminRouteCreationScreen extends StatefulWidget {
 
 class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   final RouteService _routeService = RouteService();
-  final AuthService _authService = AuthService(); // Using AuthService instead of UserService
+  final AuthService _authService = AuthService();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   
@@ -26,12 +26,18 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   
   // List to store driver data
   List<UserModel> _drivers = [];
+  // List to store resident data
+  List<UserModel> _residents = [];
+  
   bool _isLoadingDrivers = true;
+  bool _isLoadingResidents = true;
+  bool _showResidentLocations = false;
   
   GoogleMapController? _mapController;
   LatLng? _startPoint;
   LatLng? _endPoint;
   Set<Marker> _markers = {};
+  Set<Marker> _residentMarkers = {};
   Set<Polyline> _polylines = {};
   
   bool _isCreatingRoute = false;
@@ -40,16 +46,16 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   void initState() {
     super.initState();
     _fetchDrivers();
+    _fetchResidents();
   }
   
-  // Fetch all drivers from Firestore using AuthService
+  // Fetch all drivers from Firestore
   Future<void> _fetchDrivers() async {
     setState(() {
       _isLoadingDrivers = true;
     });
     
     try {
-      // Fetch drivers with 'driver' role from AuthService
       final drivers = await _authService.getDrivers();
       
       setState(() {
@@ -65,6 +71,135 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
         _isLoadingDrivers = false;
       });
     }
+  }
+  
+  // Fetch all residents with saved locations
+  Future<void> _fetchResidents() async {
+    setState(() {
+      _isLoadingResidents = true;
+    });
+    
+    try {
+      // Add getResidentsWithLocations method to AuthService
+      final residents = await _authService.getResidentsWithLocations();
+      
+      setState(() {
+        _residents = residents;
+        _isLoadingResidents = false;
+        _createResidentMarkers();
+      });
+    } catch (e) {
+      print('Error fetching residents: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load resident locations: $e')),
+      );
+      setState(() {
+        _isLoadingResidents = false;
+      });
+    }
+  }
+  
+  // Create markers for resident locations
+  void _createResidentMarkers() {
+    Set<Marker> markers = {};
+    
+    for (int i = 0; i < _residents.length; i++) {
+      UserModel resident = _residents[i];
+      
+      // Skip if resident doesn't have location data
+      if (resident.latitude == null || resident.longitude == null) continue;
+      
+      markers.add(
+        Marker(
+          markerId: MarkerId('resident_${resident.uid}'),
+          position: LatLng(resident.latitude!, resident.longitude!),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+          infoWindow: InfoWindow(
+            title: resident.name,
+            snippet: resident.address,
+            onTap: () {
+              // Option to add this resident location as a route point
+              _showResidentLocationDialog(resident);
+            },
+          ),
+        ),
+      );
+    }
+    
+    setState(() {
+      _residentMarkers = markers;
+    });
+  }
+  
+  // Dialog to add resident location as route point
+  void _showResidentLocationDialog(UserModel resident) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Add to Route'),
+        content: Text('Do you want to add ${resident.name}\'s location to the route?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _addResidentMarker(resident);
+            },
+            child: Text('Add as Point'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Add resident location as a route point
+  void _addResidentMarker(UserModel resident) {
+    final position = LatLng(resident.latitude!, resident.longitude!);
+    
+    setState(() {
+      if (_markers.isEmpty) {
+        // First point - Start
+        _startPoint = position;
+        _markers.add(
+          Marker(
+            markerId: MarkerId('start'),
+            position: position,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            infoWindow: InfoWindow(
+              title: 'Start Point',
+              snippet: 'Resident: ${resident.name}',
+            ),
+          ),
+        );
+      } else if (_markers.length == 1) {
+        // Second point - End
+        _endPoint = position;
+        _markers.add(
+          Marker(
+            markerId: MarkerId('end'),
+            position: position,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: InfoWindow(
+              title: 'End Point',
+              snippet: 'Resident: ${resident.name}',
+            ),
+          ),
+        );
+        
+        // Draw basic line between points
+        _polylines.add(
+          Polyline(
+            polylineId: PolylineId('route'),
+            points: [_startPoint!, _endPoint!],
+            color: Colors.blue,
+            width: 3,
+          ),
+        );
+      }
+    });
   }
   
   @override
@@ -87,7 +222,7 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
           IconButton(
             icon: Icon(Icons.list),
             onPressed: () {
-              Navigator.pushNamed(context, '/admin_route_list'); // Navigate to route list screen
+              Navigator.pushNamed(context, '/admin_route_list');
             },
           ),
         ],
@@ -101,13 +236,15 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
                 flex: 2,
                 child: GoogleMap(
                   initialCameraPosition: CameraPosition(
-                    target: LatLng(37.7749, -122.4194), // Default center (can be user's location)
+                    target: LatLng(37.7749, -122.4194), // Default center
                     zoom: 13,
                   ),
                   onMapCreated: (controller) {
                     _mapController = controller;
                   },
-                  markers: _markers,
+                  markers: _showResidentLocations 
+                      ? {..._markers, ..._residentMarkers}
+                      : _markers,
                   polylines: _polylines,
                   myLocationEnabled: true,
                   myLocationButtonEnabled: true,
@@ -123,9 +260,27 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Route Details',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Route Details',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Row(
+                            children: [
+                              Text('Show Resident Locations'),
+                              Switch(
+                                value: _showResidentLocations,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _showResidentLocations = value;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       SizedBox(height: 12),
                       
@@ -155,7 +310,7 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
                       ),
                       SizedBox(height: 12),
                       
-                      // Driver Dropdown (populated from auth service)
+                      // Driver Dropdown
                       _isLoadingDrivers
                           ? Center(child: CircularProgressIndicator())
                           : DropdownButtonFormField<String>(
@@ -188,7 +343,6 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
                                     _driverContactController.text = selectedDriver.contactNumber;
                                     
                                     // Use the driver's ID as the truck ID
-                                    // This assumes each driver has a dedicated truck
                                     _truckIdController.text = 'TRUCK-${selectedDriver.uid.substring(0, 6)}';
                                   }
                                 });
@@ -260,7 +414,7 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
-                            'Tap on the map to set start and end points',
+                            'Tap on the map or select resident locations to set start and end points',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.red[700],
@@ -305,10 +459,45 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
                       Text('End Point'),
                     ],
                   ),
+                  if (_showResidentLocations) ...[
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.yellow, size: 16),
+                        SizedBox(width: 4),
+                        Text('Resident Location'),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
+          
+          // Resident locations loading indicator
+          if (_isLoadingResidents && _showResidentLocations)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Loading residents...'),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -431,7 +620,4 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
       });
     }
   }
-  
-  
-    
 }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,7 +36,6 @@ class AuthService {
       return false;
     }
   }
-
 
   // Get current user data
   Future<UserModel?> getCurrentUser() async {
@@ -85,6 +86,29 @@ class AuthService {
       return null;
     } catch (e) {
       print('Error fetching driver: $e');
+      rethrow;
+    }
+  }
+
+  // NEW METHOD: Get all residents with saved locations
+  Future<List<UserModel>> getResidentsWithLocations() async {
+    try {
+      final QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'resident')
+          .get();
+          
+      // Convert to UserModel list and filter out those without locations
+      List<UserModel> residents = snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
+          .where((resident) => 
+              resident.latitude != null && 
+              resident.longitude != null)
+          .toList();
+          
+      return residents;
+    } catch (e) {
+      print('Error fetching residents with locations: $e');
       rethrow;
     }
   }
@@ -264,8 +288,6 @@ class AuthService {
       return {'email': null, 'password': null};
     }
 
-
-
     // Update user profile with location
     Future<UserModel?> updateUserProfile({
       required String userId,
@@ -357,5 +379,51 @@ class AuthService {
       print('Error setting up admin account: $e');
       return false;
     }
+  }
+
+  // NEW METHOD: Get nearby residents within a certain radius
+  Future<List<UserModel>> getNearbyResidents(double latitude, double longitude, double radiusInKm) async {
+    try {
+      // First get all residents with location data
+      List<UserModel> residents = await getResidentsWithLocations();
+      
+      // Filter by distance (using Haversine formula)
+      return residents.where((resident) {
+        double distance = _calculateDistance(
+          latitude, 
+          longitude, 
+          resident.latitude!, 
+          resident.longitude!
+        );
+        
+        return distance <= radiusInKm;
+      }).toList();
+    } catch (e) {
+      print('Error fetching nearby residents: $e');
+      rethrow;
+    }
+  }
+  
+  // Helper method to calculate distance between two points using Haversine formula
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // in kilometers
+    
+    double dLat = _toRadians(lat2 - lat1);
+    double dLon = _toRadians(lon2 - lon1);
+    
+    double a = 
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) * cos(_toRadians(lat2)) * 
+        sin(dLon / 2) * sin(dLon / 2);
+        
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    double distance = earthRadius * c;
+    
+    return distance;
+  }
+  
+  // Helper method to convert degrees to radians
+  double _toRadians(double degree) {
+    return degree * (pi / 180);
   }
 }
