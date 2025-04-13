@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:waste_management/widgets/driver_navbar.dart';
 
 class DriverHome extends StatefulWidget {
@@ -10,6 +14,31 @@ class DriverHome extends StatefulWidget {
 
 class _DriverHomeState extends State<DriverHome> {
   int _currentIndex = 0;
+  String? _profilePhotoUrl;
+  String? _driverName;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDriverProfileData();
+  }
+
+  Future<void> _fetchDriverProfileData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          setState(() {
+            _profilePhotoUrl = doc.data()?['profileImage']; // Assuming 'profileImage' is the field name
+            _driverName = doc.data()?['name']; // Added to fetch driver name
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching profile data: $e');
+    }
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -17,20 +46,28 @@ class _DriverHomeState extends State<DriverHome> {
     });
   }
 
-  void _showWasteInfoDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Waste Information'),
-        content: const Text('Learn about different types of waste and proper disposal methods.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+  void _navigateWithoutBackOption(BuildContext context, String routeName) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => getRouteWidget(routeName)),
+      (route) => false, // This prevents going back
     );
+  }
+
+  Widget getRouteWidget(String routeName) {
+    // This is a placeholder function - you would need to implement
+    // logic to return the correct widget based on the route name
+    switch (routeName) {
+      case '/driver_route_list':
+        // Return your route list widget
+        return Container(); // Replace with actual widget
+      case '/driver_cleanliness_issue_list':
+        // Return your cleanliness issues widget
+        return Container(); // Replace with actual widget
+      // Add other cases as needed
+      default:
+        return const DriverHome();
+    }
   }
 
   @override
@@ -39,6 +76,35 @@ class _DriverHomeState extends State<DriverHome> {
       appBar: AppBar(
         title: const Text('Driver Interface'),
         backgroundColor: const Color(0xFF59A867),
+        automaticallyImplyLeading: false, // Remove back button
+        actions: [
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/driver_profile');
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: _profilePhotoUrl != null
+                        ? MemoryImage(base64Decode(_profilePhotoUrl!))
+                        : const AssetImage('assets/default_profile.png') as ImageProvider,
+                    radius: 20,
+                    child: _profilePhotoUrl == null
+                        ? const Icon(Icons.person, size: 20) // Placeholder icon
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _driverName ?? '',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: IndexedStack(
         index: _currentIndex,
@@ -54,8 +120,8 @@ class _DriverHomeState extends State<DriverHome> {
                   child: Text(
                     'Quick Actions',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
 
@@ -71,7 +137,7 @@ class _DriverHomeState extends State<DriverHome> {
                     children: [
                       _ActionCard(
                         icon: Icons.map,
-                        title: 'Select Route ',
+                        title: 'Select Route',
                         description: 'Select your route for the day',
                         onTap: () {
                           Navigator.pushNamed(context, '/driver_route_list');
@@ -83,7 +149,10 @@ class _DriverHomeState extends State<DriverHome> {
                         title: 'Cleanliness Issues',
                         description: 'Cleanliness issues in your area',
                         onTap: () {
-                          Navigator.pushNamed(context, '/driver_cleanliness_issue_list');
+                          Navigator.pushNamed(
+                            context,
+                            '/driver_cleanliness_issue_list',
+                          );
                         },
                         color: Colors.orange,
                       ),
@@ -92,7 +161,7 @@ class _DriverHomeState extends State<DriverHome> {
                         title: 'Special Requests',
                         description: 'View special requests from citizens',
                         onTap: () {
-                          Navigator.pushNamed(context, '');
+                          Navigator.pushNamed(context, '/driver_special_garbage_screen');
                         },
                         color: Colors.blue,
                       ),
@@ -111,9 +180,9 @@ class _DriverHomeState extends State<DriverHome> {
               ],
             ),
           ),
-          const Center(child: Text('Tasks Page')),
-          const Center(child: Text('Notification Page')),
-          const Center(child: Text('Profile Page')),
+          const Center(child: Text('Tasks Page')), // This should not be visible anymore
+          const Center(child: Text('Notification Page')), // This should not be visible anymore
+          const Center(child: Text('Profile Page')), // This should not be visible anymore
         ],
       ),
       bottomNavigationBar: DriversNavbar(
@@ -159,17 +228,17 @@ class _ActionCard extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               description,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.black54,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
               textAlign: TextAlign.center,
             ),
           ],

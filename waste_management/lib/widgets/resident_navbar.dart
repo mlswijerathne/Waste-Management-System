@@ -37,34 +37,22 @@ class ResidentNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              // First update the current index
-              onTap(index);
-
               if (index == 0) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
+                // If already on home, just update the index
+                onTap(index);
+                // If coming from a different tab, navigate to home
+                if (currentIndex != 0) {
                   Navigator.pushNamed(context, '/resident_home');
-                });
-              }
-              
-              if (index == 1) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/recent_report_and_request');
-                });
-              }
-
-              if (index == 2) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/resident_notification_screen');
-                });
-              }
-              if (index == 3) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/resident_profile');
-                });
+                }
+              } else if (index == 1) {
+                // Navigate to reports without updating index
+                Navigator.pushNamed(context, '/recent_report_and_request');
+              } else if (index == 2) {
+                // Navigate to notifications without updating index
+                Navigator.pushNamed(context, '/resident_notification_screen');
+              } else if (index == 3) {
+                // Navigate to profile without updating index
+                Navigator.pushNamed(context, '/resident_profile');
               }
             },
             type: BottomNavigationBarType.fixed,

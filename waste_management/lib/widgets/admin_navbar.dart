@@ -37,34 +37,37 @@ class AdminNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              // First update the current index
-              onTap(index);
-
+              // Handle navigation based on index
               if (index == 0) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/admin_create_route');
-                });
-              }
-              
-              if (index == 1) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '');
-                });
-              }
-
-              if (index == 2) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '');
-                });
-              }
-              if (index == 3) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
+                // Instead of using Future.delayed, simply navigate to home route
+                // and replace the current route to prevent back navigation
+                Navigator.pushReplacementNamed(context, '/admin_create_route');
+                // Update the index only after navigation
+                onTap(index);
+              } else if (index == 1) {
+                // For truck screen (if route is defined)
+                if (Navigator.canPop(context)) {
+                  Navigator.pushReplacementNamed(context, '/admin_truck'); // Update with actual route
+                } else {
+                  Navigator.pushNamed(context, '/admin_truck'); // Update with actual route
+                }
+                onTap(index);
+              } else if (index == 2) {
+                // For cleanliness screen (if route is defined)
+                if (Navigator.canPop(context)) {
+                  Navigator.pushReplacementNamed(context, '/admin_cleanliness'); // Update with actual route
+                } else {
+                  Navigator.pushNamed(context, '/admin_cleanliness'); // Update with actual route
+                }
+                onTap(index);
+              } else if (index == 3) {
+                // For breakdown screen
+                if (Navigator.canPop(context)) {
+                  Navigator.pushReplacementNamed(context, '/admin_history');
+                } else {
                   Navigator.pushNamed(context, '/admin_history');
-                });
+                }
+                onTap(index);
               }
             },
             type: BottomNavigationBarType.fixed,

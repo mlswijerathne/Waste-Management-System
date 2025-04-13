@@ -10,8 +10,10 @@ import 'package:waste_management/screens/city_management_screens/admin_home_scre
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_breakdown_list.dart';
-import 'package:waste_management/screens/city_management_screens/admin_special_garbage_issue_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_special_garbage_request_screen.dart';
+import 'package:waste_management/screens/driver_screens/driver_assignment_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_cleanliness_issue_list.dart';
+import 'package:waste_management/screens/driver_screens/driver_special_garbage_screen.dart';
 import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_profile_screen.dart';
@@ -76,6 +78,12 @@ class MyApp extends StatelessWidget {
         '/admin_history' : (context) => AdminAssignedRequestsHistoryScreen(), //Route for AdminAssignedRequestsHistoryScreen
 
         '/resident_special_garbage_request_screen' :(context) =>SpecialGarbageRequestsScreen(), //special garbge location
+
+        '/driver_special_garbage_screen' : (context) => DriverSpecialGarbageScreen(), //Route for ResidentRouteDetailsScreen
+        
+        '/driver_assignment_screen' : (context) => DriverAssignmentScreen(),//Route for DriverAssignmentScreen
+
+        
        
       },
     );

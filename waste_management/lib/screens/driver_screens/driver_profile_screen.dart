@@ -124,7 +124,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/driver_home'),
         ),
       ),
       body: SingleChildScrollView(

@@ -37,30 +37,19 @@ class DriversNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              // First update the current index
-              onTap(index);
-
-              if (index == 1) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/driver_route_list');
-                });
+              if (index == 0) {
+                // If home is tapped, just update the index
+                onTap(index);
+              } else if (index == 1) {
+                // Don't update index, directly navigate to route list
+                Navigator.pushNamed(context, '/driver_route_list');
+              } else if (index == 2) {
+                // Navigate to notifications
+                Navigator.pushNamed(context, '/driver_notifications');
+              } else if (index == 3) {
+                // Navigate to assignments
+                Navigator.pushNamed(context, '/driver_assignment_screen');
               }
-              if (index == 2) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/breakdown_screen');
-                });
-              }
-              // Then navigate to the corresponding screen
-              if (index == 3) {
-                // Use Future.delayed to avoid state update conflicts
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(context, '/driver_profile');
-                });
-              }
-
-              
             },
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
@@ -81,17 +70,17 @@ class DriversNavbar extends StatelessWidget {
                 Icons.alt_route,
                 'Tracker',
                 currentIndex == 1,
-              ), // Changed icon for Tracker
+              ),
               _buildBottomNavigationBarItem(
-                Icons.announcement_outlined,
-                Icons.announcement,
-                'Issues',
+                Icons.notifications_outlined,
+                Icons.notifications,
+                'Notifications',
                 currentIndex == 2,
               ),
               _buildBottomNavigationBarItem(
                 Icons.assignment_outlined,
                 Icons.assignment,
-                'Report',
+                'Assignments',
                 currentIndex == 3,
               ),
             ],

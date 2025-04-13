@@ -57,66 +57,84 @@ class SpecialGarbageRequestModel {
   }
 
   factory SpecialGarbageRequestModel.fromMap(Map<String, dynamic> map) {
-    return SpecialGarbageRequestModel(
-      id: map['id'] ?? '',
-      residentId: map['residentId'] ?? '',
-      residentName: map['residentName'] ?? '',
-      description: map['description'] ?? '',
-      garbageType: map['garbageType'] ?? '',
-      location: map['location'] ?? '',
-      latitude: map['latitude'] ?? 0.0,
-      longitude: map['longitude'] ?? 0.0,
-      imageUrl: map['imageUrl'],
-      requestedTime:
+    // Safely parse latitude and longitude values with proper null handling
+    double? latitude;
+    try {
+      latitude =
+          map['latitude'] != null ? (map['latitude'] as num).toDouble() : 0.0;
+    } catch (e) {
+      latitude = 0.0;
+    }
+
+    double? longitude;
+    try {
+      longitude =
+          map['longitude'] != null ? (map['longitude'] as num).toDouble() : 0.0;
+    } catch (e) {
+      longitude = 0.0;
+    }
+
+    // Safely parse DateTime objects with try-catch
+    DateTime? requestedTime;
+    try {
+      requestedTime =
           map['requestedTime'] != null
               ? (map['requestedTime'] is DateTime
                   ? map['requestedTime']
-                  : DateTime.parse(map['requestedTime']))
-              : DateTime.now(),
-      status: map['status'] ?? 'pending',
-      assignedDriverId: map['assignedDriverId'],
-      assignedDriverName: map['assignedDriverName'],
-      assignedTime:
+                  : DateTime.parse(map['requestedTime'].toString()))
+              : DateTime.now();
+    } catch (e) {
+      requestedTime = DateTime.now();
+    }
+
+    DateTime? assignedTime;
+    try {
+      assignedTime =
           map['assignedTime'] != null
               ? (map['assignedTime'] is DateTime
                   ? map['assignedTime']
-                  : DateTime.parse(map['assignedTime']))
-              : null,
-      collectedTime:
+                  : DateTime.parse(map['assignedTime'].toString()))
+              : null;
+    } catch (e) {
+      assignedTime = null;
+    }
+
+    DateTime? collectedTime;
+    try {
+      collectedTime =
           map['collectedTime'] != null
               ? (map['collectedTime'] is DateTime
                   ? map['collectedTime']
-                  : DateTime.parse(map['collectedTime']))
-              : null,
-      residentConfirmed: map['residentConfirmed'],
-      residentFeedback: map['residentFeedback'],
-      estimatedWeight: map['estimatedWeight'],
-      notes: map['notes'],
-    );
-  }
+                  : DateTime.parse(map['collectedTime'].toString()))
+              : null;
+    } catch (e) {
+      collectedTime = null;
+    }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'residentId': residentId,
-      'residentName': residentName,
-      'description': description,
-      'garbageType': garbageType,
-      'location': location,
-      'latitude': latitude,
-      'longitude': longitude,
-      'imageUrl': imageUrl,
-      'requestedTime': requestedTime.toIso8601String(),
-      'status': status,
-      'assignedDriverId': assignedDriverId,
-      'assignedDriverName': assignedDriverName,
-      'assignedTime': assignedTime?.toIso8601String(),
-      'collectedTime': collectedTime?.toIso8601String(),
-      'residentConfirmed': residentConfirmed,
-      'residentFeedback': residentFeedback,
-      'estimatedWeight': estimatedWeight,
-      'notes': notes,
-    };
+    return SpecialGarbageRequestModel(
+      id: map['id']?.toString() ?? '',
+      residentId: map['residentId']?.toString() ?? '',
+      residentName: map['residentName']?.toString() ?? '',
+      description: map['description']?.toString() ?? '',
+      garbageType: map['garbageType']?.toString() ?? '',
+      location: map['location']?.toString() ?? '',
+      latitude: latitude,
+      longitude: longitude,
+      imageUrl: map['imageUrl']?.toString(),
+      requestedTime: requestedTime ?? DateTime.now(),
+      status: map['status']?.toString() ?? 'pending',
+      assignedDriverId: map['assignedDriverId']?.toString(),
+      assignedDriverName: map['assignedDriverName']?.toString(),
+      assignedTime: assignedTime,
+      collectedTime: collectedTime,
+      residentConfirmed: map['residentConfirmed'] as bool?,
+      residentFeedback: map['residentFeedback']?.toString(),
+      estimatedWeight:
+          map['estimatedWeight'] != null
+              ? (map['estimatedWeight'] as num).toDouble()
+              : null,
+      notes: map['notes']?.toString(),
+    );
   }
 
   // Create a copy of the request with updated fields
@@ -162,5 +180,29 @@ class SpecialGarbageRequestModel {
       estimatedWeight: estimatedWeight ?? this.estimatedWeight,
       notes: notes ?? this.notes,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'residentId': residentId,
+      'residentName': residentName,
+      'description': description,
+      'garbageType': garbageType,
+      'location': location,
+      'latitude': latitude,
+      'longitude': longitude,
+      'imageUrl': imageUrl,
+      'requestedTime': requestedTime.toIso8601String(),
+      'status': status,
+      'assignedDriverId': assignedDriverId,
+      'assignedDriverName': assignedDriverName,
+      'assignedTime': assignedTime?.toIso8601String(),
+      'collectedTime': collectedTime?.toIso8601String(),
+      'residentConfirmed': residentConfirmed,
+      'residentFeedback': residentFeedback,
+      'estimatedWeight': estimatedWeight,
+      'notes': notes,
+    };
   }
 }

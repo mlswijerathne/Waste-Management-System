@@ -23,13 +23,6 @@ class _ResidentHomeState extends State<ResidentHome> {
   Set<Marker> _markers = {};
   GoogleMapController? _mapController;
 
-  final List<Widget> _pages = [
-    const Center(child: Text('Home Page')),
-    const Center(child: Text('Report Page')),
-    const Center(child: Text('Notification Page')),
-    const Center(child: Text('Profile Page')),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -153,256 +146,247 @@ class _ResidentHomeState extends State<ResidentHome> {
       appBar: AppBar(
         title: const Text('Waste Management System'),
         backgroundColor: const Color(0xFF59A867),
+        automaticallyImplyLeading: false, // Remove back button
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          // Home Page
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Map Widget
-                Container(
-                  margin: const EdgeInsets.all(16.0),
-                  height: 200,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFF59A867)),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Stack(
-                      children: [
-                        GoogleMap(
-                          initialCameraPosition: CameraPosition(
-                            target: _userLocation,
-                            zoom: 15,
-                          ),
-                          markers: _markers,
-                          myLocationEnabled: false,
-                          zoomControlsEnabled: false,
-                          mapToolbarEnabled: false,
-                          compassEnabled: false,
-                          onMapCreated: (controller) {
-                            setState(() {
-                              _mapController = controller;
-                              // Move camera once map is created
-                              _moveCameraToUserLocation();
-                            });
-                          },
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Map Widget
+            Container(
+              margin: const EdgeInsets.all(16.0),
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF59A867)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: _userLocation,
+                        zoom: 15,
+                      ),
+                      markers: _markers,
+                      myLocationEnabled: false,
+                      zoomControlsEnabled: false,
+                      mapToolbarEnabled: false,
+                      compassEnabled: false,
+                      onMapCreated: (controller) {
+                        setState(() {
+                          _mapController = controller;
+                          // Move camera once map is created
+                          _moveCameraToUserLocation();
+                        });
+                      },
+                    ),
+                    if (_isLoading)
+                      Container(
+                        color: Colors.white.withOpacity(0.7),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
                         ),
-                        if (_isLoading)
-                          Container(
-                            color: Colors.white.withOpacity(0.7),
-                            child: const Center(
-                              child: CircularProgressIndicator(),
+                      ),
+                    if (_errorMessage.isNotEmpty)
+                      Container(
+                        color: Colors.white.withOpacity(0.7),
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: Text(
+                            _errorMessage,
+                            style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: Row(
+                        children: [
+                          // Refresh location button
+                          InkWell(
+                            onTap: _fetchUserLocation,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 5,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.refresh,
+                                color: Color(0xFF59A867),
+                                size: 24,
+                              ),
                             ),
                           ),
-                        if (_errorMessage.isNotEmpty)
-                          Container(
-                            color: Colors.white.withOpacity(0.7),
-                            padding: const EdgeInsets.all(16),
-                            child: Center(
-                              child: Text(
-                                _errorMessage,
-                                style: const TextStyle(color: Colors.red),
-                                textAlign: TextAlign.center,
+                          // Edit location button
+                          InkWell(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/resident_location_picker_screen')
+                                  .then((_) {
+                                    // Force refresh when returning from location picker
+                                    _fetchUserLocation();
+                                  });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 5,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.edit_location,
+                                color: Color(0xFF59A867),
+                                size: 24,
                               ),
                             ),
                           ),
-                        Positioned(
-                          bottom: 10,
-                          right: 10,
-                          child: Row(
-                            children: [
-                              // Refresh location button
-                              InkWell(
-                                onTap: _fetchUserLocation,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  margin: const EdgeInsets.only(right: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 5,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.refresh,
-                                    color: Color(0xFF59A867),
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                              // Edit location button
-                              InkWell(
-                                onTap: () {
-                                  Navigator.pushNamed(context, '/resident_location_picker_screen')
-                                      .then((_) {
-                                        // Force refresh when returning from location picker
-                                        _fetchUserLocation();
-                                      });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 5,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.edit_location,
-                                    color: Color(0xFF59A867),
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-
-                // Quick Actions
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Quick Actions',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    children: [
-                      _ActionCard(
-                        icon: Icons.map,
-                        title: 'Active Routes',
-                        description: 'Track waste collection in real-time',
-                        onTap: () => Navigator.pushNamed(context, '/active_route_screen'),
-                        color: const Color(0xFF59A867),
-                      ),
-                      _ActionCard(
-                        icon: Icons.report_problem,
-                        title: 'Report Issue',
-                        description: 'Report cleanliness issues in your area',
-                        onTap: () => Navigator.pushNamed(context, '/report_cleanliness_issue'),
-                        color: Colors.orange,
-                      ),
-                      _ActionCard(
-                        icon: Icons.history,
-                        title: 'Recent Reports',
-                        description: 'Check your recent report status',
-                        onTap: () => Navigator.pushNamed(context, '/recent_report_and_request'),
-                        color: Colors.blue,
-                      ),
-                      _ActionCard(
-                        icon: Icons.info,
-                        title: 'Request Special Garbage',
-                        description: 'Learn about waste types and disposal',
-                        onTap: () => Navigator.pushNamed(context, '/resident_special_garbage_request_screen'),
-                        color: Colors.purple,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Tips Section
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Waste Management Tips',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF59A867).withOpacity(0.5)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF59A867).withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.eco, color: Color(0xFF59A867), size: 28),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Tip of the Day',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Color(0xFF59A867),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Reduce plastic waste by carrying a reusable water bottle instead of buying single-use plastic bottles.',
-                                style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
-          ),
-          // Other tabs
-          const Center(child: Text('Report Page')),
-          const Center(child: Text('Notification Page')),
-          const Center(child: Text('Profile Page')),
-        ],
+
+            // Quick Actions
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Quick Actions',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                children: [
+                  _ActionCard(
+                    icon: Icons.map,
+                    title: 'Active Routes',
+                    description: 'Track waste collection in real-time',
+                    onTap: () => Navigator.pushNamed(context, '/active_route_screen'),
+                    color: const Color(0xFF59A867),
+                  ),
+                  _ActionCard(
+                    icon: Icons.report_problem,
+                    title: 'Report Issue',
+                    description: 'Report cleanliness issues in your area',
+                    onTap: () => Navigator.pushNamed(context, '/report_cleanliness_issue'),
+                    color: Colors.orange,
+                  ),
+                  _ActionCard(
+                    icon: Icons.history,
+                    title: 'Recent Reports',
+                    description: 'Check your recent report status',
+                    onTap: () => Navigator.pushNamed(context, '/recent_report_and_request'),
+                    color: Colors.blue,
+                  ),
+                  _ActionCard(
+                    icon: Icons.info,
+                    title: 'Request Special Garbage',
+                    description: 'Learn about waste types and disposal',
+                    onTap: () => Navigator.pushNamed(context, '/resident_special_garbage_request_screen'),
+                    color: Colors.purple,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Tips Section
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Waste Management Tips',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF59A867).withOpacity(0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF59A867).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.eco, color: Color(0xFF59A867), size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tip of the Day',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF59A867),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Reduce plastic waste by carrying a reusable water bottle instead of buying single-use plastic bottles.',
+                            style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
       bottomNavigationBar: ResidentNavbar(
         currentIndex: _currentIndex,

@@ -51,6 +51,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> with TickerProv
   AnimationController? _animationController;
   Animation<LatLng>? _truckAnimation;
 
+  // Define primary color to match other screens
+  final Color primaryColor = const Color(0xFF59A867);
+
   @override
   void initState() {
     super.initState();
@@ -110,7 +113,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> with TickerProv
           Polyline(
             polylineId: const PolylineId('route_path'),
             points: routePath,
-            color: Colors.blue,
+            color: primaryColor,
             width: 5,
           )
         };
@@ -250,15 +253,34 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> with TickerProv
     }
   }
 
-  Widget _buildInfoRow(String label, String value, {TextStyle? valueStyle}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(width: 80, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
-        const SizedBox(width: 8),
-        Expanded(child: Text(value, style: valueStyle ?? const TextStyle(fontSize: 16))),
-      ],
-    );
+  String _getScheduleFrequencyText() {
+    if (_route == null) return 'N/A';
+    
+    switch(_route!.scheduleFrequency.toLowerCase()) {
+      case 'daily':
+        return 'Daily';
+      case 'weekly':
+        return 'Weekly';
+      case 'monthly':
+        return 'Monthly';
+      default:
+        return _route!.scheduleFrequency;
+    }
+  }
+
+  String _getScheduleDaysText() {
+    if (_route == null || _route!.scheduleDays.isEmpty) return 'N/A';
+    
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return _route!.scheduleDays.map((dayIndex) => days[dayIndex]).join(', ');
+  }
+
+  String _formatTimeOfDay(TimeOfDay? time) {
+    if (time == null) return 'N/A';
+    
+    final now = DateTime.now();
+    final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return DateFormat('h:mm a').format(dt);
   }
 
   @override
@@ -266,13 +288,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> with TickerProv
     return Scaffold(
       appBar: AppBar(
         title: Text(_route?.name ?? 'Route Details'),
-        backgroundColor: Colors.green,
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: primaryColor))
           : Column(
               children: [
+                // Map section
                 Expanded(
                   flex: 3,
                   child: Stack(
@@ -304,85 +327,321 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> with TickerProv
                     ],
                   ),
                 ),
+                
+                // Details section
                 Expanded(
-                  flex: 2,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Route Progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        LinearProgressIndicator(
-                          value: _completionPercentage / 100,
-                          backgroundColor: Colors.grey[300],
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                          minHeight: 10,
+                  flex: 4,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                          offset: const Offset(0, -3),
                         ),
-                        const SizedBox(height: 8),
-                        Text('${_completionPercentage.toStringAsFixed(1)}% complete'),
-
-                        const SizedBox(height: 16),
-                        if (_timeEstimation != null)
+                      ],
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Route name and status
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const Icon(Icons.access_time, color: Colors.green),
-                              const SizedBox(width: 8),
-                              Text(
-                                DateFormat('HH:mm').format(
-                                  _timeEstimation!['estimatedCompletionTime'] is DateTime 
-                                      ? _timeEstimation!['estimatedCompletionTime'] 
-                                      : DateTime.now()
+                              Expanded(
+                                child: Text(
+                                  _route?.name ?? 'Route Details',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                style: const TextStyle(fontSize: 16),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '(${(_timeEstimation!['remainingTimeMinutes'] as num).toInt()} mins left)',
-                                style: const TextStyle(fontSize: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  'ACTIVE',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-
-                        const SizedBox(height: 24),
-                        const Divider(),
-                        const SizedBox(height: 8),
-
-                        Card(
-                          elevation: 3,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Driver Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 8),
-                                _buildInfoRow('Name:', _route?.driverName ?? 'Not assigned'),
-                                const SizedBox(height: 4),
-                                _buildInfoRow('Truck ID:', _route?.truckId ?? 'N/A'),
-                                const SizedBox(height: 4),
-                                _buildInfoRow('Contact:', _route?.driverContact ?? 'N/A'),
-                                const SizedBox(height: 8),
-                                if (_route?.driverContact != null && _route!.driverContact!.isNotEmpty)
-                                  ElevatedButton.icon(
-                                    onPressed: _contactDriver,
-                                    icon: const Icon(Icons.phone),
-                                    label: const Text('Contact Driver'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Progress section
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: primaryColor.withOpacity(0.3), width: 1),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'ROUTE PROGRESS', 
+                                    style: TextStyle(
+                                      fontSize: 16, 
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
                                     ),
                                   ),
-                              ],
+                                  const SizedBox(height: 12),
+                                  LinearProgressIndicator(
+                                    value: _completionPercentage / 100,
+                                    backgroundColor: Colors.grey[300],
+                                    valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                                    minHeight: 10,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '${_completionPercentage.toStringAsFixed(1)}% complete',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      
+                                      if (_timeEstimation != null)
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.access_time, 
+                                              color: Colors.grey, 
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'ETA: ${DateFormat('HH:mm').format(
+                                                _timeEstimation!['estimatedCompletionTime'] is DateTime 
+                                                    ? _timeEstimation!['estimatedCompletionTime'] 
+                                                    : DateTime.now()
+                                              )}',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                  
+                                  if (_timeEstimation != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '${(_timeEstimation!['remainingTimeMinutes'] as num).toInt()} minutes remaining',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Driver info section
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'DRIVER INFORMATION', 
+                                    style: TextStyle(
+                                      fontSize: 16, 
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  _buildInfoRow(
+                                    Icons.person,
+                                    'Name:',
+                                    _route?.driverName ?? 'Not assigned',
+                                  ),
+                                  
+                                  const Divider(height: 24),
+                                  
+                                  _buildInfoRow(
+                                    Icons.local_shipping,
+                                    'Truck ID:',
+                                    _route?.truckId ?? 'N/A',
+                                  ),
+                                  
+                                  const Divider(height: 24),
+                                  
+                                  _buildInfoRow(
+                                    Icons.phone,
+                                    'Contact:',
+                                    _route?.driverContact ?? 'N/A',
+                                  ),
+                                  
+                                  const SizedBox(height: 16),
+                                  
+                                  if (_route?.driverContact != null && _route!.driverContact!.isNotEmpty)
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: _contactDriver,
+                                        icon: const Icon(Icons.phone, size: 18),
+                                        label: const Text('CONTACT DRIVER'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryColor,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Route schedule details
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'ROUTE DETAILS', 
+                                    style: TextStyle(
+                                      fontSize: 16, 
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Waste category
+                                  _buildInfoRow(
+                                    Icons.delete,
+                                    'Waste Type:',
+                                    _route?.wasteCategory.toUpperCase() ?? 'N/A',
+                                  ),
+                                  
+                                  const Divider(height: 24),
+                                  
+                                  // Distance
+                                  _buildInfoRow(
+                                    Icons.route,
+                                    'Distance:',
+                                    '${_route?.distance.toStringAsFixed(1) ?? 'N/A'} km',
+                                  ),
+                                  
+                                  const Divider(height: 24),
+                                  
+                                  // Schedule frequency
+                                  _buildInfoRow(
+                                    Icons.calendar_today,
+                                    'Frequency:',
+                                    _getScheduleFrequencyText(),
+                                  ),
+                                  
+                                  const Divider(height: 24),
+                                  
+                                  // Schedule days
+                                  _buildInfoRow(
+                                    Icons.today,
+                                    'Days:',
+                                    _getScheduleDaysText(),
+                                  ),
+                                  
+                                  const Divider(height: 24),
+                                  
+                                  // Schedule time
+                                  _buildInfoRow(
+                                    Icons.access_time,
+                                    'Time:',
+                                    '${_formatTimeOfDay(_route?.scheduleStartTime)} - ${_formatTimeOfDay(_route?.scheduleEndTime)}',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
+    );
+  }
+  
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: Colors.grey[600],
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
     );
   }
 }

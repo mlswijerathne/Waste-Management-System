@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:waste_management/models/cleanlinessIssueModel.dart';
-import 'package:waste_management/screens/city_management_screens/assign_driver_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_assign_driver_cleanliness_issue_screen.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 
 

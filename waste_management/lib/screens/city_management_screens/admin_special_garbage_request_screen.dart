@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:waste_management/models/specialGarbageRequestModel.dart';
-import 'package:waste_management/screens/city_management_screens/admin_assign_driver_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_assign_driver_garbege_request_screen.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
 import 'package:intl/intl.dart';
 
