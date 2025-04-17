@@ -96,10 +96,6 @@ class _DriverHomeState extends State<DriverHome> {
                         : null,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    _driverName ?? '',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
                 ],
               ),
             ),

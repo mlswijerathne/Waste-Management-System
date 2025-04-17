@@ -46,7 +46,7 @@ dependencies:
   uuid: ^4.5.1
   intl: ^0.18.1  
   geolocator: ^9.0.2
-  google_maps_flutter: ^2.12.0
+  google_maps_flutter: ^2.2.0
   flutter_launcher_icons: ^0.14.3
   permission_handler: ^11.4.0
   url_launcher: ^6.3.1
@@ -80,6 +80,7 @@ flutter:
     - assets/image/signin.png
     - assets/image/detail.png
     - assets/image/trash_track.png
+    - assets/icons/truck_icon.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

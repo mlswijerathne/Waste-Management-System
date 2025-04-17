@@ -6,6 +6,7 @@ import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_assign_history_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_cleanliness_issue_list_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_fetch_active_trucks_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
@@ -82,6 +83,8 @@ class MyApp extends StatelessWidget {
         '/driver_special_garbage_screen' : (context) => DriverSpecialGarbageScreen(), //Route for ResidentRouteDetailsScreen
         
         '/driver_assignment_screen' : (context) => DriverAssignmentScreen(),//Route for DriverAssignmentScreen
+
+        '/admin_active_drivers_screen' : (context) => AdminActiveDriversScreen(),//Route for AdminActiveDriversScreen
 
         
        

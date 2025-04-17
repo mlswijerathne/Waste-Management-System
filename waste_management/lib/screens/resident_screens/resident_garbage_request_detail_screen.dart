@@ -1,4 +1,6 @@
 import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +9,7 @@ import 'package:waste_management/service/special_Garbage_Request_service.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/models/userModel.dart';
 import 'package:waste_management/widgets/status_timeline.dart';
+import 'package:http/http.dart' as http;
 
 class SpecialGarbageRequestDetailsScreen extends StatefulWidget {
   final SpecialGarbageRequestModel request;
@@ -593,6 +596,70 @@ class _SpecialGarbageRequestDetailsScreenState
     );
   }
 
+  // New method to handle both base64 and network images
+  Future<Uint8List?> _getImageBytes(String imageUrl) async {
+    try {
+      print('Loading image from: ${imageUrl.substring(0, min(50, imageUrl.length))}...');
+      
+      if (imageUrl.startsWith('http')) {
+        // Handle network images
+        try {
+          final response = await http.get(Uri.parse(imageUrl));
+          if (response.statusCode == 200) {
+            return response.bodyBytes;
+          } else {
+            print('HTTP error: ${response.statusCode}');
+            return null;
+          }
+        } catch (e) {
+          print('Error fetching network image: $e');
+          return null;
+        }
+      } else {
+        // Handle base64 images
+        try {
+          // Remove data URI prefix if present
+          String sanitized = imageUrl;
+          if (imageUrl.contains(',')) {
+            sanitized = imageUrl.split(',')[1];
+          }
+          
+          // Try to decode directly first
+          try {
+            return base64Decode(sanitized);
+          } catch (e) {
+            print('Initial base64 decode failed: $e');
+            
+            // Try with padding
+            while (sanitized.length % 4 != 0) {
+              sanitized += '=';
+            }
+            
+            // Try decoding again
+            try {
+              return base64Decode(sanitized);
+            } catch (e) {
+              print('Base64 decode with padding failed: $e');
+              
+              // One more attempt with URL-safe characters replaced
+              sanitized = sanitized.replaceAll('-', '+').replaceAll('_', '/');
+              while (sanitized.length % 4 != 0) {
+                sanitized += '=';
+              }
+              return base64Decode(sanitized);
+            }
+          }
+        } catch (e) {
+          print('All base64 decode attempts failed: $e');
+          return null;
+        }
+      }
+    } catch (e) {
+      print('Error processing image: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -711,66 +778,74 @@ class _SpecialGarbageRequestDetailsScreenState
 
                         const SizedBox(height: 16),
 
-                        // Base64 image if available
-                        if (request.imageUrl != null && request.imageUrl!.startsWith('data:image/')) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text(
-                                'Garbage Image',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        // Updated image display section with robust image loading
+                        if (request.imageUrl != null && request.imageUrl!.isNotEmpty) ...[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              'Garbage Image',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                              Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 2,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Image.memory(
-                                  Uri.parse(request.imageUrl!).data?.contentAsBytes() ?? Uint8List(0),
-                                  fit: BoxFit.cover,
-                                  height: 200,
-                                  width: double.infinity,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Center(child: Text('Failed to load image'));
-                                  },
-                                ),
+                          ),
+                          Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: FutureBuilder<Uint8List?>(
+                                future: _getImageBytes(request.imageUrl!),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(
+                                      child: SizedBox(
+                                        height: 200,
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  
+                                  if (snapshot.hasError || !snapshot.hasData || snapshot.data == null || snapshot.data!.isEmpty) {
+                                    return SizedBox(
+                                      height: 200,
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Failed to load image: ${snapshot.error != null ? snapshot.error.toString() : "Unknown error"}',
+                                              style: const TextStyle(color: Colors.grey),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(
+                                      snapshot.data!,
+                                      fit: BoxFit.cover,
+                                      height: 200,
+                                      width: double.infinity,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ] else if (request.imageUrl != null) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text(
-                                'Garbage Image',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 2,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Image.network(
-                                  request.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  height: 200,
-                                  width: double.infinity,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Center(child: Text('Failed to load image'));
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
+                        ],
+
                         const SizedBox(height: 16),
 
                         // Display feedback form if user is resident and status is collected but not confirmed

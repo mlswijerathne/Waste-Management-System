@@ -37,38 +37,25 @@ class AdminNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              // Handle navigation based on index
-              if (index == 0) {
-                // Instead of using Future.delayed, simply navigate to home route
-                // and replace the current route to prevent back navigation
-                Navigator.pushReplacementNamed(context, '/admin_create_route');
-                // Update the index only after navigation
+
+                if (index == 0) {
+                // If already on home, just update the index
                 onTap(index);
+                // If coming from a different tab, navigate to home
+                if (currentIndex != 0) {
+                  Navigator.pushNamed(context, '/admin_home');
+                }
               } else if (index == 1) {
-                // For truck screen (if route is defined)
-                if (Navigator.canPop(context)) {
-                  Navigator.pushReplacementNamed(context, '/admin_truck'); // Update with actual route
-                } else {
-                  Navigator.pushNamed(context, '/admin_truck'); // Update with actual route
-                }
-                onTap(index);
+                // Navigate to reports without updating index
+                Navigator.pushNamed(context, '/admin_active_drivers_screen');
               } else if (index == 2) {
-                // For cleanliness screen (if route is defined)
-                if (Navigator.canPop(context)) {
-                  Navigator.pushReplacementNamed(context, '/admin_cleanliness'); // Update with actual route
-                } else {
-                  Navigator.pushNamed(context, '/admin_cleanliness'); // Update with actual route
-                }
-                onTap(index);
+                // Navigate to notifications without updating index
+                Navigator.pushNamed(context, '/admin_cleanliness_issue_list');
               } else if (index == 3) {
-                // For breakdown screen
-                if (Navigator.canPop(context)) {
-                  Navigator.pushReplacementNamed(context, '/admin_history');
-                } else {
-                  Navigator.pushNamed(context, '/admin_history');
-                }
-                onTap(index);
+                // Navigate to profile without updating index
+                Navigator.pushNamed(context, '/admin_breakdown'); 
               }
+
             },
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,

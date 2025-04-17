@@ -1,17 +1,26 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:waste_management/models/routeModel.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class DriverRouteDetailScreen extends StatefulWidget {
   final RouteModel route;
 
-  const DriverRouteDetailScreen({Key? key, required this.route}) : super(key: key);
+  const DriverRouteDetailScreen({Key? key, required this.route})
+    : super(key: key);
 
   @override
-  _DriverRouteDetailScreenState createState() => _DriverRouteDetailScreenState();
+  _DriverRouteDetailScreenState createState() =>
+      _DriverRouteDetailScreenState();
 }
 
 class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
@@ -24,13 +33,47 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   bool _isLoading = true;
   bool _isMapReady = false;
   bool _locationPermissionGranted = false;
+  late Timer _animationTimer;
+  int _currentPathIndex = 0;
+  bool _animationActive = false;
+  BitmapDescriptor? _truckIcon;
 
   @override
   void initState() {
     super.initState();
     _route = widget.route;
+    _loadTruckIcon();
     _checkLocationPermission();
     _initializeMapData();
+  }
+
+  Future<void> _loadTruckIcon() async {
+    final Uint8List markerIcon = await getBytesFromAsset(
+      'assets/icons/truck_icon.png',
+      80,
+    );
+    _truckIcon = BitmapDescriptor.fromBytes(markerIcon);
+
+    // If custom icon loading fails, use a default truck icon
+    // ignore: deprecated_member_use
+    _truckIcon ??= await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(80, 80)),
+      'assets/icons/truck_icon.png',
+    ).catchError((_) {
+      return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+    });
+  }
+
+  Future<Uint8List> getBytesFromAsset(String path, int width) async {
+    ByteData data = await rootBundle.load(path);
+    ui.Codec codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: width,
+    );
+    ui.FrameInfo fi = await codec.getNextFrame();
+    return (await fi.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!.buffer.asUint8List();
   }
 
   Future<void> _checkLocationPermission() async {
@@ -39,7 +82,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     setState(() {
       _locationPermissionGranted = status.isGranted;
     });
-    
+
     // If not granted, request it
     if (!status.isGranted) {
       final result = await Permission.location.request();
@@ -47,7 +90,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         _locationPermissionGranted = result.isGranted;
       });
     }
-    
+
     // Setup route progress listener after checking permissions
     _setupRouteProgressListener();
   }
@@ -56,6 +99,8 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     // Add start and end markers
     final startPoint = LatLng(_route.startLat, _route.startLng);
     final endPoint = LatLng(_route.endLat, _route.endLng);
+
+    print('Start Point: ${_route.startLat}, ${_route.startLng}');
 
     _markers.add(
       Marker(
@@ -77,9 +122,10 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
     // Add route polyline if available
     if (_route.actualDirectionPath.isNotEmpty) {
-      final polylinePoints = _route.actualDirectionPath
-          .map((point) => LatLng(point['lat']!, point['lng']!))
-          .toList();
+      final polylinePoints =
+          _route.actualDirectionPath
+              .map((point) => LatLng(point['lat']!, point['lng']!))
+              .toList();
 
       _polylines.add(
         Polyline(
@@ -102,27 +148,142 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         if (position != null && mounted) {
           setState(() {
             _currentPosition = position;
-            // Update or add current position marker
-            _markers.removeWhere((marker) => marker.markerId.value == 'current');
-            _markers.add(
-              Marker(
-                markerId: const MarkerId('current'),
-                position: position,
-                infoWindow: const InfoWindow(title: 'Your Location'),
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-              ),
-            );
+
+            // Update truck marker position
+            _updateTruckMarker(position);
           });
 
           // Move camera to follow the current position only if map is ready
           if (_isMapReady && _mapController != null) {
-            _mapController?.animateCamera(
-              CameraUpdate.newLatLng(position),
-            );
+            _mapController?.animateCamera(CameraUpdate.newLatLng(position));
           }
         }
       });
+    } else if (_route.isActive) {
+      // If route is active but we don't have location permission,
+      // use animation along the predefined route
+      _startRouteAnimation();
     }
+  }
+
+  void _updateTruckMarker(LatLng position) {
+    // Calculate rotation angle based on direction of movement
+    double rotation = 0.0;
+
+    if (_currentPathIndex > 0 &&
+        _route.actualDirectionPath.length > _currentPathIndex) {
+      final previousPoint = LatLng(
+        _route.actualDirectionPath[_currentPathIndex - 1]['lat']!,
+        _route.actualDirectionPath[_currentPathIndex - 1]['lng']!,
+      );
+
+      // Calculate bearing between previous and current point
+      rotation = _getBearing(previousPoint, position);
+    }
+
+    // Remove old marker and add new one with rotation
+    _markers.removeWhere((marker) => marker.markerId.value == 'truck');
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('truck'),
+        position: position,
+        infoWindow: const InfoWindow(title: 'Truck Location'),
+        icon:
+            _truckIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        rotation: rotation,
+        anchor: const Offset(0.5, 0.5),
+      ),
+    );
+  }
+
+  void _startRouteAnimation() {
+    // Stop any existing animation
+    if (_animationTimer != null && _animationTimer.isActive) {
+      _animationTimer.cancel();
+    }
+
+    // Reset position to start
+    _currentPathIndex = 0;
+    _animationActive = true;
+
+    // Only start animation if we have route points
+    if (_route.actualDirectionPath.isEmpty) {
+      return;
+    }
+
+    // Add initial truck marker
+    final initialPosition = LatLng(
+      _route.actualDirectionPath[0]['lat']!,
+      _route.actualDirectionPath[0]['lng']!,
+    );
+
+    _updateTruckMarker(initialPosition);
+
+    // Start animation timer
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 300), (
+      timer,
+    ) {
+      if (!_animationActive || !mounted) {
+        timer.cancel();
+        return;
+      }
+
+      // Increment the path index
+      _currentPathIndex++;
+
+      // If we reached the end of the path, reset or stop
+      if (_currentPathIndex >= _route.actualDirectionPath.length) {
+        // To loop animation:
+        // _currentPathIndex = 0;
+
+        // Or to stop animation:
+        timer.cancel();
+        _animationActive = false;
+        return;
+      }
+
+      // Get current point
+      final currentPoint = LatLng(
+        _route.actualDirectionPath[_currentPathIndex]['lat']!,
+        _route.actualDirectionPath[_currentPathIndex]['lng']!,
+      );
+
+      // Update truck marker
+      setState(() {
+        _updateTruckMarker(currentPoint);
+
+        // Update progress percentage based on path progress
+        final progressPercentage =
+            (_currentPathIndex * 100) / _route.actualDirectionPath.length;
+        _route = _route.copyWith(currentProgressPercentage: progressPercentage);
+      });
+
+      // Move camera to follow the animated marker if map is ready
+      if (_isMapReady && _mapController != null) {
+        _mapController?.animateCamera(CameraUpdate.newLatLng(currentPoint));
+      }
+    });
+  }
+
+  // Calculate bearing between two points (for truck rotation)
+  double _getBearing(LatLng start, LatLng end) {
+    final startLat = start.latitude * (pi / 180);
+    final startLng = start.longitude * (pi / 180);
+    final endLat = end.latitude * (pi / 180);
+    final endLng = end.longitude * (pi / 180);
+
+    final dLon = endLng - startLng;
+
+    final y = sin(dLon) * cos(endLat);
+    final x =
+        cos(startLat) * sin(endLat) - sin(startLat) * cos(endLat) * cos(dLon);
+
+    final bearing = atan2(y, x);
+
+    // Convert to degrees
+    final bearingDegrees = bearing * (180 / pi);
+    return (bearingDegrees + 360) % 360;
   }
 
   Future<void> _startRoute() async {
@@ -131,27 +292,30 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         // Show alert asking for location permission
         bool shouldRequest = await showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Location Permission Required'),
-            content: const Text('This app needs location permission to track your route progress.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Location Permission Required'),
+                content: const Text(
+                  'This app needs location permission to track your route progress. Without this permission, we\'ll use a simulated route.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Use Simulation'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Settings'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Settings'),
-              ),
-            ],
-          ),
         );
-        
+
         if (shouldRequest == true) {
           await openAppSettings();
           return;
         } else {
-          return;
+          // Continue with simulation
         }
       }
 
@@ -160,6 +324,36 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       } else {
         await _routeService.startRoute(_route.id);
       }
+
+      // Set the driver's location to the route's start point
+      final startPoint = LatLng(_route.startLat, _route.startLng);
+      setState(() {
+        _currentPosition = startPoint;
+      });
+
+      // Move the camera to the start position
+      if (_isMapReady && _mapController != null) {
+        print('Animating camera to: ${_route.startLat}, ${_route.startLng}');
+        _mapController!.animateCamera(CameraUpdate.newLatLng(startPoint));
+      }
+
+      if (!_isMapReady) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLng(LatLng(_route.startLat, _route.startLng)),
+          );
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _route.completedAt != null
+                ? 'Route restarted successfully'
+                : 'Route started successfully',
+          ),
+        ),
+      );
 
       setState(() {
         _route = _route.copyWith(
@@ -171,45 +365,11 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         );
       });
 
-      // Only move the camera if the map is ready
-      if (_isMapReady && _mapController != null) {
-        _mapController!.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(_route.startLat, _route.startLng),
-          ),
-        );
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_route.completedAt != null 
-          ? 'Route restarted successfully' 
-          : 'Route started successfully')),
-      );
-
       _setupRouteProgressListener();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error starting route: $e')),
-      );
-    }
-  }
-
-  Future<void> _pauseRoute() async {
-    try {
-      await _routeService.pauseRoute(_route.id);
-      setState(() {
-        _route = _route.copyWith(
-          isPaused: true,
-          pausedAt: DateTime.now(),
-        );
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Route paused')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error pausing route: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error starting route: $e')));
     }
   }
 
@@ -217,19 +377,49 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     try {
       await _routeService.resumeRoute(_route.id);
       setState(() {
-        _route = _route.copyWith(
-          isPaused: false,
-          resumedAt: DateTime.now(),
-        );
+        _route = _route.copyWith(isPaused: false, resumedAt: DateTime.now());
+        if (!_locationPermissionGranted) {
+          _animationActive = true;
+          _startRouteAnimation();
+        }
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Route resumed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Route resumed')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error resuming route: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error resuming route: $e')));
     }
+  }
+
+  Future<void> _pauseRoute() async {
+    try {
+      await _routeService.pauseRoute(_route.id);
+      setState(() {
+        _route = _route.copyWith(isPaused: true, pausedAt: DateTime.now());
+        if (!_locationPermissionGranted) {
+          _animationActive = false;
+        }
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Route paused')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error pausing route: $e')));
+    }
+  }
+
+  @override
+  void dispose() {
+    // Cancel animation timer
+    if (_animationTimer != null && _animationTimer.isActive) {
+      _animationTimer.cancel();
+    }
+    _mapController?.dispose();
+    super.dispose();
   }
 
   Future<void> _completeRoute() async {
@@ -248,29 +438,30 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       );
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error completing route: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error completing route: $e')));
     }
   }
 
   Future<void> _cancelRoute() async {
     bool confirm = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Cancellation'),
-        content: const Text('Are you sure you want to cancel this route?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirm Cancellation'),
+            content: const Text('Are you sure you want to cancel this route?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Yes'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -284,14 +475,17 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
             cancelledAt: DateTime.now(),
           );
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Route cancelled')),
-        );
-        Navigator.pop(context, true); // Return true to indicate route cancellation
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Route cancelled')));
+        Navigator.pop(
+          context,
+          true,
+        ); // Return true to indicate route cancellation
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cancelling route: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error cancelling route: $e')));
       }
     }
   }
@@ -299,11 +493,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -323,26 +513,20 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
             child: GoogleMap(
               onMapCreated: (controller) {
                 _mapController = controller;
-                // Set a flag to indicate that the map is ready
                 setState(() {
                   _isMapReady = true;
                 });
-                
-                // If the route is active, move to the starting position
-                if (_route.isActive && _currentPosition != null) {
-                  controller.animateCamera(
-                    CameraUpdate.newLatLng(_currentPosition!),
-                  );
-                } else {
-                  controller.animateCamera(
-                    CameraUpdate.newLatLng(LatLng(_route.startLat, _route.startLng)),
-                  );
-                }
+
+                // Move the camera to the start position
+                controller.animateCamera(
+                  CameraUpdate.newLatLng(LatLng(_route.startLat, _route.startLng)),
+                );
               },
               initialCameraPosition: CameraPosition(
                 target: LatLng(_route.startLat, _route.startLng),
                 zoom: 14,
               ),
+
               markers: _markers,
               polylines: _polylines,
               myLocationEnabled: _locationPermissionGranted,
@@ -350,12 +534,12 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
               mapToolbarEnabled: true,
               compassEnabled: true,
               zoomControlsEnabled: true,
+              mapType: MapType.normal,
+              tiltGesturesEnabled: true,
+              rotateGesturesEnabled: true,
             ),
           ),
-          Expanded(
-            flex: 4,
-            child: _buildRouteInfoSection(),
-          ),
+          Expanded(flex: 4, child: _buildRouteInfoSection()),
         ],
       ),
       bottomNavigationBar: _buildActionButtons(),
@@ -370,11 +554,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _getStatusIcon(),
-            color: Colors.white,
-            size: 24,
-          ),
+          Icon(_getStatusIcon(), color: Colors.white, size: 24),
           const SizedBox(width: 8),
           Text(
             _getStatusText().toUpperCase(),
@@ -399,9 +579,11 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
   Widget _buildRouteInfoSection() {
     // Get waste category info
-    Color categoryColor = _route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
-    String categoryText = _route.wasteCategory == 'organic' ? 'ORGANIC WASTE' : 'INORGANIC WASTE';
-    
+    Color categoryColor =
+        _route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
+    String categoryText =
+        _route.wasteCategory == 'organic' ? 'ORGANIC WASTE' : 'INORGANIC WASTE';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -426,10 +608,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
           children: [
             Text(
               _route.name,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             // Waste category badge
@@ -450,16 +629,20 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(Icons.route, 'Distance', '${_route.distance.toStringAsFixed(1)} km'),
             _buildInfoRow(
-              Icons.access_time, 
-              'Schedule', 
-              '${_formatTime(_route.scheduleStartTime)} - ${_formatTime(_route.scheduleEndTime)}'
+              Icons.route,
+              'Distance',
+              '${_route.distance.toStringAsFixed(1)} km',
             ),
             _buildInfoRow(
-              Icons.calendar_today, 
-              'Start Date', 
-              _formatDateTime(_route.startedAt ?? _route.createdAt)
+              Icons.access_time,
+              'Schedule',
+              '${_formatTime(_route.scheduleStartTime)} - ${_formatTime(_route.scheduleEndTime)}',
+            ),
+            _buildInfoRow(
+              Icons.calendar_today,
+              'Start Date',
+              _formatDateTime(_route.startedAt ?? _route.createdAt),
             ),
             const SizedBox(height: 16),
             if (_route.isActive) ...[
@@ -498,7 +681,11 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 32),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                      size: 32,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -524,7 +711,10 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                             ),
                             child: const Text('ENABLE LOCATION'),
                           ),
@@ -559,10 +749,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
           const SizedBox(width: 6),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -588,7 +775,8 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         children: [
           if (!_route.isActive && !_route.isCancelled)
             _buildActionButton(
-              icon: _route.completedAt != null ? Icons.refresh : Icons.play_arrow,
+              icon:
+                  _route.completedAt != null ? Icons.refresh : Icons.play_arrow,
               label: _route.completedAt != null ? 'RESTART' : 'START',
               color: Colors.green[700]!,
               onPressed: (_isMapReady) ? _startRoute : null,
@@ -682,16 +870,10 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   String _formatDateTime(DateTime dateTime) {
     return DateFormat('MMM d, HH:mm').format(dateTime);
   }
-  
+
   String _formatTime(TimeOfDay time) {
     final now = DateTime.now();
     final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
     return DateFormat('h:mm a').format(dt);
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 }
