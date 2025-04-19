@@ -9,7 +9,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class DriverRouteDetailScreen extends StatefulWidget {
@@ -33,7 +32,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   bool _isLoading = true;
   bool _isMapReady = false;
   bool _locationPermissionGranted = false;
-  late Timer _animationTimer;
+  Timer? _animationTimer;
   int _currentPathIndex = 0;
   bool _animationActive = false;
   BitmapDescriptor? _truckIcon;
@@ -42,26 +41,47 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   void initState() {
     super.initState();
     _route = widget.route;
+    
+    // Initialize current position to route start point
+    _currentPosition = LatLng(_route.startLat, _route.startLng);
+    
     _loadTruckIcon();
     _checkLocationPermission();
     _initializeMapData();
   }
 
   Future<void> _loadTruckIcon() async {
-    final Uint8List markerIcon = await getBytesFromAsset(
-      'assets/icons/truck_icon.png',
-      80,
-    );
-    _truckIcon = BitmapDescriptor.fromBytes(markerIcon);
+    try {
+      final Uint8List markerIcon = await getBytesFromAsset(
+        'assets/icons/truck_icon.png',
+        80,
+      );
+      _truckIcon = BitmapDescriptor.fromBytes(markerIcon);
+      print('Truck icon loaded successfully');
+    } catch (e) {
+      print('Error loading truck icon from bytes: $e');
+      
+      try {
+        // If custom icon loading fails, use a default truck icon
+        // ignore: deprecated_member_use
+        _truckIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(80, 80)),
+          'assets/icons/truck_icon.png',
+        );
+        print('Loaded truck icon from asset image');
+      } catch (e) {
+        print('Error loading truck icon from asset image: $e');
+        _truckIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+        print('Using default blue marker as fallback');
+      }
+    }
 
-    // If custom icon loading fails, use a default truck icon
-    // ignore: deprecated_member_use
-    _truckIcon ??= await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(80, 80)),
-      'assets/icons/truck_icon.png',
-    ).catchError((_) {
-      return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
-    });
+    // If we already have a position, update the truck marker with the icon
+    if (_currentPosition != null && mounted) {
+      setState(() {
+        _updateTruckMarker(_currentPosition!);
+      });
+    }
   }
 
   Future<Uint8List> getBytesFromAsset(String path, int width) async {
@@ -102,6 +122,12 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
     print('Start Point: ${_route.startLat}, ${_route.startLng}');
 
+    // Set current position to start point if not already set
+    if (_currentPosition == null || 
+        (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
+      _currentPosition = startPoint;
+    }
+
     _markers.add(
       Marker(
         markerId: const MarkerId('start'),
@@ -119,6 +145,11 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       ),
     );
+
+    // Add truck marker if route is active
+    if (_route.isActive) {
+      _updateTruckMarker(startPoint);
+    }
 
     // Add route polyline if available
     if (_route.actualDirectionPath.isNotEmpty) {
@@ -146,9 +177,14 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     if (_route.isActive && _locationPermissionGranted) {
       _routeService.getRouteProgress(_route.id).listen((position) {
         if (position != null && mounted) {
+          // Filter out invalid zero coordinates
+          if (position.latitude == 0.0 && position.longitude == 0.0) {
+            print('Ignoring zero coordinates from route progress');
+            return;
+          }
+          
           setState(() {
             _currentPosition = position;
-
             // Update truck marker position
             _updateTruckMarker(position);
           });
@@ -157,16 +193,41 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
           if (_isMapReady && _mapController != null) {
             _mapController?.animateCamera(CameraUpdate.newLatLng(position));
           }
+        } else if (_currentPosition == null && mounted) {
+          // If no position received but route is active, use start point
+          LatLng startPoint = LatLng(_route.startLat, _route.startLng);
+          setState(() {
+            _currentPosition = startPoint;
+            _updateTruckMarker(startPoint);
+          });
         }
       });
     } else if (_route.isActive) {
       // If route is active but we don't have location permission,
       // use animation along the predefined route
-      _startRouteAnimation();
+      
+      // Make sure we have a valid position before starting animation
+      if (_currentPosition == null || 
+          (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
+        _currentPosition = LatLng(_route.startLat, _route.startLng);
+        _updateTruckMarker(_currentPosition!);
+      }
+      
+      if (!_route.isPaused) {
+        _startRouteAnimation();
+      }
     }
   }
 
   void _updateTruckMarker(LatLng position) {
+    // Never use zero coordinates
+    if (position.latitude == 0.0 && position.longitude == 0.0) {
+      print('Preventing truck marker at zero coordinates');
+      position = LatLng(_route.startLat, _route.startLng);
+    }
+    
+    print('Added truck marker at position: ${position.latitude}, ${position.longitude}');
+    
     // Calculate rotation angle based on direction of movement
     double rotation = 0.0;
 
@@ -188,19 +249,18 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         markerId: const MarkerId('truck'),
         position: position,
         infoWindow: const InfoWindow(title: 'Truck Location'),
-        icon:
-            _truckIcon ??
-            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        icon: _truckIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         rotation: rotation,
         anchor: const Offset(0.5, 0.5),
+        zIndex: 2, // Higher z-index to ensure visibility
       ),
     );
   }
 
   void _startRouteAnimation() {
     // Stop any existing animation
-    if (_animationTimer != null && _animationTimer.isActive) {
-      _animationTimer.cancel();
+    if (_animationTimer != null && _animationTimer!.isActive) {
+      _animationTimer!.cancel();
     }
 
     // Reset position to start
@@ -209,21 +269,19 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
     // Only start animation if we have route points
     if (_route.actualDirectionPath.isEmpty) {
+      print('Cannot start animation: route path is empty');
       return;
     }
 
-    // Add initial truck marker
-    final initialPosition = LatLng(
-      _route.actualDirectionPath[0]['lat']!,
-      _route.actualDirectionPath[0]['lng']!,
-    );
-
+    // Always start from the route's defined start point
+    final initialPosition = LatLng(_route.startLat, _route.startLng);
+    
+    // Set current position and update truck marker
+    _currentPosition = initialPosition;
     _updateTruckMarker(initialPosition);
 
     // Start animation timer
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 300), (
-      timer,
-    ) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
       if (!_animationActive || !mounted) {
         timer.cancel();
         return;
@@ -234,10 +292,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
       // If we reached the end of the path, reset or stop
       if (_currentPathIndex >= _route.actualDirectionPath.length) {
-        // To loop animation:
-        // _currentPathIndex = 0;
-
-        // Or to stop animation:
         timer.cancel();
         _animationActive = false;
         return;
@@ -251,6 +305,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
       // Update truck marker
       setState(() {
+        _currentPosition = currentPoint;
         _updateTruckMarker(currentPoint);
 
         // Update progress percentage based on path progress
@@ -327,20 +382,34 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
       // Set the driver's location to the route's start point
       final startPoint = LatLng(_route.startLat, _route.startLng);
+      
+      print('Starting route at: ${startPoint.latitude}, ${startPoint.longitude}');
+      
       setState(() {
         _currentPosition = startPoint;
+        
+        // Explicitly update truck marker at start point
+        _updateTruckMarker(startPoint);
+        
+        _route = _route.copyWith(
+          isActive: true,
+          isPaused: false,
+          startedAt: DateTime.now(),
+          completedAt: null,
+          currentProgressPercentage: 0.0,
+        );
       });
 
       // Move the camera to the start position
       if (_isMapReady && _mapController != null) {
         print('Animating camera to: ${_route.startLat}, ${_route.startLng}');
-        _mapController!.animateCamera(CameraUpdate.newLatLng(startPoint));
-      }
-
-      if (!_isMapReady) {
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLngZoom(startPoint, 14),
+        );
+      } else {
         Future.delayed(const Duration(milliseconds: 500), () {
           _mapController?.animateCamera(
-            CameraUpdate.newLatLng(LatLng(_route.startLat, _route.startLng)),
+            CameraUpdate.newLatLngZoom(startPoint, 14),
           );
         });
       }
@@ -355,16 +424,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         ),
       );
 
-      setState(() {
-        _route = _route.copyWith(
-          isActive: true,
-          isPaused: false,
-          startedAt: DateTime.now(),
-          completedAt: null,
-          currentProgressPercentage: 0.0,
-        );
-      });
-
       _setupRouteProgressListener();
     } catch (e) {
       ScaffoldMessenger.of(
@@ -376,6 +435,14 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   Future<void> _resumeRoute() async {
     try {
       await _routeService.resumeRoute(_route.id);
+      
+      // If no current position or at zero coordinates, use the route start point
+      if (_currentPosition == null || 
+          (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
+        _currentPosition = LatLng(_route.startLat, _route.startLng);
+        _updateTruckMarker(_currentPosition!);
+      }
+      
       setState(() {
         _route = _route.copyWith(isPaused: false, resumedAt: DateTime.now());
         if (!_locationPermissionGranted) {
@@ -383,6 +450,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
           _startRouteAnimation();
         }
       });
+      
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Route resumed')));
@@ -400,6 +468,9 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         _route = _route.copyWith(isPaused: true, pausedAt: DateTime.now());
         if (!_locationPermissionGranted) {
           _animationActive = false;
+          if (_animationTimer != null && _animationTimer!.isActive) {
+            _animationTimer!.cancel();
+          }
         }
       });
       ScaffoldMessenger.of(
@@ -415,8 +486,8 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   @override
   void dispose() {
     // Cancel animation timer
-    if (_animationTimer != null && _animationTimer.isActive) {
-      _animationTimer.cancel();
+    if (_animationTimer != null && _animationTimer!.isActive) {
+      _animationTimer!.cancel();
     }
     _mapController?.dispose();
     super.dispose();
@@ -519,14 +590,36 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
                 // Move the camera to the start position
                 controller.animateCamera(
-                  CameraUpdate.newLatLng(LatLng(_route.startLat, _route.startLng)),
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(_route.startLat, _route.startLng), 
+                    14
+                  ),
                 );
+                
+                // If route is active, ensure truck marker is showing at valid position
+                if (_route.isActive) {
+                  LatLng position;
+                  if (_currentPosition == null || 
+                      (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
+                    position = LatLng(_route.startLat, _route.startLng);
+                  } else {
+                    position = _currentPosition!;
+                  }
+                  
+                  // Use slight delay to make sure the marker gets added after map is ready
+                  Future.delayed(Duration(milliseconds: 500), () {
+                    if (mounted) {
+                      setState(() {
+                        _updateTruckMarker(position);
+                      });
+                    }
+                  });
+                }
               },
               initialCameraPosition: CameraPosition(
                 target: LatLng(_route.startLat, _route.startLng),
                 zoom: 14,
               ),
-
               markers: _markers,
               polylines: _polylines,
               myLocationEnabled: _locationPermissionGranted,
