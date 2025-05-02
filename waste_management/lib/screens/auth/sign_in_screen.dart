@@ -69,59 +69,63 @@ class _SignInPageState extends State<SignInPage> {
   }
   
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
+  
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+  
+  try {
+    UserModel? user = await _authService.signIn(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    // Handle remember me functionality
+    if (rememberMe) {
+      await _authService.saveLoginCredentials(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+    } else {
+      await _authService.clearLoginCredentials();
     }
     
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    
-    try {
-      UserModel? user = await _authService.signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      // Handle remember me functionality
-      if (rememberMe) {
-        await _authService.saveLoginCredentials(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
-      } else {
-        await _authService.clearLoginCredentials();
+    if (user != null && mounted) {
+      // Navigate based on user role
+      switch (user.role) {
+        case 'resident':
+          Navigator.pushReplacementNamed(context, '/resident_home');
+          break;
+        case 'driver':
+          Navigator.pushReplacementNamed(context, '/driver_home');
+          break;
+        case 'cityManagement':
+          Navigator.pushReplacementNamed(context, '/admin_home');
+          break;
+        default:
+          // Show error for unknown role
+          setState(() {
+            _errorMessage = "Unknown user role: ${user.role}";
+            _isLoading = false;
+          });
       }
-      
-      if (user != null) {
-        // Navigate based on user role
-        if (mounted) {
-          if (user.role == 'resident') {
-            Navigator.pushReplacementNamed(context, '/resident_home');
-          } else if (user.role == 'driver') {
-            Navigator.pushReplacementNamed(context, '/driver_home');
-          } else if (user.role == 'cityManagement') {
-            Navigator.pushReplacementNamed(context, '/admin_home');
-          } else {
-            // Default fallback
-            Navigator.pushReplacementNamed(context, '/home');
-          }
-        }
-      } else {
-        setState(() {
-          _errorMessage = "Invalid email or password.";
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
+    } else {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = "Invalid email or password.";
         _isLoading = false;
       });
     }
+  } catch (e) {
+    setState(() {
+      _errorMessage = e.toString();
+      _isLoading = false;
+    });
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(

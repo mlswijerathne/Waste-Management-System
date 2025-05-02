@@ -5,32 +5,33 @@ import 'package:waste_management/screens/auth/loading_screen.dart';
 import 'package:waste_management/screens/auth/sign_in_screen.dart';
 import 'package:waste_management/screens/auth/sign_up_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_assign_history_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_breakdown_list.dart';
 import 'package:waste_management/screens/city_management_screens/admin_cleanliness_issue_list_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_fetch_active_trucks_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_home_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_create_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_route_list_screen.dart';
-import 'package:waste_management/screens/city_management_screens/admin_breakdown_list.dart';
 import 'package:waste_management/screens/city_management_screens/admin_special_garbage_request_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_assignment_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_cleanliness_issue_list.dart';
-import 'package:waste_management/screens/driver_screens/driver_special_garbage_screen.dart';
-import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_home_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_profile_screen.dart';
 import 'package:waste_management/screens/driver_screens/driver_route_list_screen.dart';
+import 'package:waste_management/screens/driver_screens/driver_special_garbage_screen.dart';
+import 'package:waste_management/screens/driver_screens/drver_breakdown_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident-detailtwo_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_Location_picker_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_active_route_screen.dart';
-import 'package:waste_management/screens/resident_screens/resident_notification_screen.dart';
-import 'package:waste_management/screens/resident_screens/resident_report_cleanliness_issue_screen.dart';
-import 'package:waste_management/screens/resident_screens/resident_recent_cleanliness_report_screen.dart';
-import 'package:waste_management/screens/resident_screens/resident-detailtwo_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_detail_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_home_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_notification_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_profile_screen.dart';
-import 'package:waste_management/screens/resident_screens/resident_route_details_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_recent_cleanliness_report_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_report_cleanliness_issue_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_special_garbage_request_screen.dart';
-import './utils/theme.dart';
+import 'package:waste_management/utils/protected_route.dart';
+import 'package:waste_management/utils/theme.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized
@@ -47,47 +48,119 @@ class MyApp extends StatelessWidget {
       title: 'Waste Management System',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: '/loading_screen', // Set initial route to HomeScreen
+      initialRoute: '/resident_profile', // Set initial route to LoadingScreen
       routes: {
-        '/breakdown_screen' :(context) => BreakdownReportScreen(),//Route for BreakdownReportScreen
-        '/driver_home' : (context) => const DriverHome(), // Route for DriverHomeScreen
-        '/forget_passowrd' : (context) =>const ForgotPasswordScreen(), //Route for ForgotPasswordScreen
-        '/sign_in_page' : (context) => const SignInPage(), //Route for SignInPage
-        '/sign_up_page' : (context) => const SignupScreen(),//Route for SignupScreen
-        '/loading_screen' : (context) =>const LoadingScreen(),//Route for LoadingScreen
-        '/admin_home' : (context) => const AdminHome(),//Route for AdminHome
-        '/resident_home': (context) => const ResidentHome(), // Route for ResidentHomeScreen
-        '/resident_detail':(context)=> const DetailPage(),//Route for DetailPage
-        '/resident_detailtwo' : (context)=> const DetailTwoScreen(),//Route for DetailTwoScreen
-        '/resident_profile' : (context) =>const ResidentProfileScreen(), //Route for Resident Profile
-        '/driver_profile' : (context) => DriverProfileScreen(), //Route Driver Profile
-        '/report_cleanliness_issue' : (context) => ReportCleanlinessIssuePage(), //Route for ReportCleanlinessIssuePage
+        // Public routes - accessible without authentication
+        '/loading_screen': (context) => const LoadingScreen(),
+        '/sign_in_page': (context) => const SignInPage(),
+        '/sign_up_page': (context) => const SignupScreen(),
+        '/forget_passowrd': (context) => const ForgotPasswordScreen(),
         
-        '/recent_report_and_request' : (context) => RecentReportsRequestsPage(),//Route for RecentReportsRequestsPage
-        '/admin_create_route' : (context) => AdminRouteCreationScreen(),//Route for AdminCreateRouteScreen
-        '/admin_route_list' : (context) => AdminRouteListScreen(),//Route for AdminRouteListScreen
-        '/driver_route_list' : (context) => DriverRouteListScreen(),//Route for DriverRouteSelectionScreen
-        '/active_route_screen' : (context) => ResidentActiveRoutesScreen(),//Route for ActiveRouteScreen
-        '/resident_location_picker_screen' : (context) => ResidentLocationPickerScreen(),//Route for ResidentRouteDetailsScreen
+        // Resident-only routes
+        '/resident_home': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: const ResidentHome(),
+        ),
+        '/resident_detail': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: const DetailPage(),
+        ),
+        '/resident_detailtwo': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: const DetailTwoScreen(),
+        ),
+        '/resident_profile': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: const ResidentProfileScreen(),
+        ),
+        '/report_cleanliness_issue': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: ReportCleanlinessIssuePage(),
+        ),
+        '/recent_report_and_request': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: RecentReportsRequestsPage(),
+        ),
+        '/active_route_screen': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: ResidentActiveRoutesScreen(),
+        ),
+        '/resident_location_picker_screen': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: ResidentLocationPickerScreen(),
+        ),
+        '/resident_notification_screen': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: ResidentNotificationScreen(),
+        ),
+        '/resident_special_garbage_request_screen': (context) => ProtectedRoute(
+          allowedRoles: ['resident'],
+          child: SpecialGarbageRequestsScreen(),
+        ),
         
-        '/admin_cleanliness_issue_list' : (context) => AdminCleanlinessIssueListScreen(),//Route for AdminCleanlinessIssueListScreen
-        '/driver_cleanliness_issue_list' : (context) => DriverCleanlinessIssueListScreen(),//Route for DriverCleanlinessIssueListScreen
-        '/resident_notification_screen' : (context) => ResidentNotificationScreen(),//Route for ResidentNotificationScreen
-    
-        '/admin_breakdown' : (context) => AdminBreakdownListScreen(),//Route for AdminBreakdownListScreen
-        '/admin_special_garbage_requests' : (context) => AdminSpecialGarbageIssuesScreen(), //Route for AdminSpecialGarbageIssuesScreen
-        '/admin_history' : (context) => AdminAssignedRequestsHistoryScreen(), //Route for AdminAssignedRequestsHistoryScreen
-
-        '/resident_special_garbage_request_screen' :(context) =>SpecialGarbageRequestsScreen(), //special garbge location
-
-        '/driver_special_garbage_screen' : (context) => DriverSpecialGarbageScreen(), //Route for ResidentRouteDetailsScreen
+        // Driver-only routes
+        '/driver_home': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: const DriverHome(),
+        ),
+        '/driver_profile': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: DriverProfileScreen(),
+        ),
+        '/driver_route_list': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: DriverRouteListScreen(),
+        ),
+        '/driver_cleanliness_issue_list': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: DriverCleanlinessIssueListScreen(),
+        ),
+        '/breakdown_screen': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: BreakdownReportScreen(),
+        ),
+        '/driver_special_garbage_screen': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: DriverSpecialGarbageScreen(),
+        ),
+        '/driver_assignment_screen': (context) => ProtectedRoute(
+          allowedRoles: ['driver'],
+          child: DriverAssignmentScreen(),
+        ),
         
-        '/driver_assignment_screen' : (context) => DriverAssignmentScreen(),//Route for DriverAssignmentScreen
-
-        '/admin_active_drivers_screen' : (context) => AdminActiveDriversScreen(),//Route for AdminActiveDriversScreen
-
-        
-       
+        // City Management/Admin-only routes
+        '/admin_home': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: const AdminHome(),
+        ),
+        '/admin_create_route': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminRouteCreationScreen(),
+        ),
+        '/admin_route_list': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminRouteListScreen(),
+        ),
+        '/admin_cleanliness_issue_list': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminCleanlinessIssueListScreen(),
+        ),
+        '/admin_breakdown': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminBreakdownListScreen(),
+        ),
+        '/admin_special_garbage_requests': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminSpecialGarbageIssuesScreen(),
+        ),
+        '/admin_history': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminAssignedRequestsHistoryScreen(),
+        ),
+        '/admin_active_drivers_screen': (context) => ProtectedRoute(
+          allowedRoles: ['cityManagement'],
+          child: AdminActiveDriversScreen(),
+        ),
       },
     );
   }

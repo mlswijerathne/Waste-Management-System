@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:waste_management/models/cleanlinessIssueModel.dart';
 import 'package:waste_management/models/specialGarbageRequestModel.dart';
+import 'package:waste_management/screens/driver_screens/driver_special_garbage_detail_screen.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
@@ -386,10 +387,11 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
       ),
       child: InkWell(
         onTap: () {
-          Navigator.pushNamed(
+          Navigator.push(
             context,
-            '/driver_special_garbage_detail_screen',
-            arguments: request.id,
+            MaterialPageRoute(
+              builder: (context) => DriverSpecialGarbageDetailScreen(requestId: request.id),
+            ),
           ).then((_) => _loadSpecialRequests());
         },
         borderRadius: BorderRadius.circular(12.0),
@@ -514,10 +516,11 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                       Icons.visibility,
                       Colors.blue,
                       () {
-                        Navigator.pushNamed(
+                        Navigator.push(
                           context,
-                          '/driver_special_garbage_detail_screen',
-                          arguments: request.id,
+                          MaterialPageRoute(
+                            builder: (context) => DriverSpecialGarbageDetailScreen(requestId: request.id),
+                          ),
                         ).then((_) => _loadSpecialRequests());
                       },
                     ),
