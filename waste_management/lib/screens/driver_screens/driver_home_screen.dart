@@ -16,6 +16,18 @@ class _DriverHomeState extends State<DriverHome> {
   int _currentIndex = 0;
   String? _profilePhotoUrl;
   String? _driverName;
+  bool _isLoading = true;
+
+  String _getDayWish() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Morning';
+    } else if (hour < 17) {
+      return 'Afternoon';
+    } else {
+      return 'Evening';
+    }
+  }
 
   @override
   void initState() {
@@ -25,18 +37,21 @@ class _DriverHomeState extends State<DriverHome> {
 
   Future<void> _fetchDriverProfileData() async {
     try {
+      setState(() => _isLoading = true);
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (doc.exists) {
           setState(() {
-            _profilePhotoUrl = doc.data()?['profileImage']; // Assuming 'profileImage' is the field name
-            _driverName = doc.data()?['name']; // Added to fetch driver name
+            _profilePhotoUrl = doc.data()?['profileImage']; 
+            _driverName = doc.data()?['name'];
+            _isLoading = false;
           });
         }
       }
     } catch (e) {
       print('Error fetching profile data: $e');
+      setState(() => _isLoading = false);
     }
   }
 
@@ -44,142 +59,303 @@ class _DriverHomeState extends State<DriverHome> {
     setState(() {
       _currentIndex = index;
     });
-  }
-
-  void _navigateWithoutBackOption(BuildContext context, String routeName) {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => getRouteWidget(routeName)),
-      (route) => false, // This prevents going back
-    );
-  }
-
-  Widget getRouteWidget(String routeName) {
-    // This is a placeholder function - you would need to implement
-    // logic to return the correct widget based on the route name
-    switch (routeName) {
-      case '/driver_route_list':
-        // Return your route list widget
-        return Container(); // Replace with actual widget
-      case '/driver_cleanliness_issue_list':
-        // Return your cleanliness issues widget
-        return Container(); // Replace with actual widget
-      // Add other cases as needed
-      default:
-        return const DriverHome();
+    
+    // Refresh data when returning to home tab
+    if (index == 0) {
+      _fetchDriverProfileData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Driver Interface'),
-        backgroundColor: const Color(0xFF59A867),
-        automaticallyImplyLeading: false, // Remove back button
-        actions: [
-          GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, '/driver_profile');
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundImage: _profilePhotoUrl != null
-                        ? MemoryImage(base64Decode(_profilePhotoUrl!))
-                        : const AssetImage('assets/default_profile.png') as ImageProvider,
-                    radius: 20,
-                    child: _profilePhotoUrl == null
-                        ? const Icon(Icons.person, size: 20) // Placeholder icon
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                ],
+        title: Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, '/driver_profile');
+              },
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                backgroundImage: _profilePhotoUrl != null
+                  ? MemoryImage(base64Decode(_profilePhotoUrl!))
+                  : null,
+                child: _profilePhotoUrl == null
+                  ? const Icon(
+                    Icons.person,
+                    color: Color(0xFF59A867),
+                  )
+                  : null,
               ),
             ),
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          // Home Page with Quick Actions
-          SingleChildScrollView(
-            child: Column(
+            const SizedBox(width: 12),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Quick Actions Title
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Quick Actions',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                Text(
+                  'Good ${_getDayWish()}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
                   ),
                 ),
-
-                // Action Cards
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    children: [
-                      _ActionCard(
-                        icon: Icons.map,
-                        title: 'Select Route',
-                        description: 'Select your route for the day',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/driver_route_list');
-                        },
-                        color: const Color(0xFF59A867),
-                      ),
-                      _ActionCard(
-                        icon: Icons.info,
-                        title: 'Cleanliness Issues',
-                        description: 'Cleanliness issues in your area',
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/driver_cleanliness_issue_list',
-                          );
-                        },
-                        color: Colors.orange,
-                      ),
-                      _ActionCard(
-                        icon: Icons.folder_special,
-                        title: 'Special Requests',
-                        description: 'View special requests from citizens',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/driver_special_garbage_screen');
-                        },
-                        color: Colors.blue,
-                      ),
-                      _ActionCard(
-                        icon: Icons.build,
-                        title: 'Report Breakdown',
-                        description: 'Report vehicle breakdowns',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/breakdown_screen');
-                        },
-                        color: Colors.purple,
-                      ),
-                    ],
+                Text(
+                  '${_driverName ?? 'Driver'}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ],
             ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+            onPressed: () {
+              // Handle notifications
+            },
           ),
-          const Center(child: Text('Tasks Page')), // This should not be visible anymore
-          const Center(child: Text('Notification Page')), // This should not be visible anymore
-          const Center(child: Text('Profile Page')), // This should not be visible anymore
         ],
+        elevation: 0,
+        backgroundColor: const Color(0xFF59A867),
+        automaticallyImplyLeading: false, // Remove back button
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Green curved background extension
+            Container(
+              width: double.infinity,
+              height: 20,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF59A867),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+            ),
+
+            // Status Card - Could display driver status, current route, etc.
+            Container(
+              margin: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              height: 110, // Slightly reduced height
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF59A867),
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF59A867).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.directions_bus,
+                            color: Color(0xFF59A867),
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min, // Prevent overflow
+                            children: [
+                              const Text(
+                                'Current Status',
+                                style: TextStyle(
+                                  fontSize: 15, // Slightly reduced font size
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF59A867),
+                                ),
+                              ),
+                              const SizedBox(height: 4), // Reduced spacing
+                              Text(
+                                'No active route selected',
+                                style: TextStyle(
+                                  fontSize: 13, // Reduced font size
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 6), // Reduced spacing
+                              SizedBox(
+                                height: 28, // Fixed height for button
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, '/driver_route_list');
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF59A867),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), // Reduced padding
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Start Route',
+                                    style: TextStyle(color: Colors.white, fontSize: 12), // Reduced font size
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ),
+
+            // Quick Actions
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Navigate to see all actions
+                    },
+                    child: const Text(
+                      'See All',
+                      style: TextStyle(
+                        color: Color(0xFF59A867),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.3, // Increased aspect ratio to provide more height
+                children: [
+                  _ActionCard(
+                    icon: Icons.map,
+                    title: 'Select Route',
+                    description: 'Select your route for the day',
+                    onTap: () => Navigator.pushNamed(context, '/driver_route_list'),
+                    color: const Color(0xFF59A867),
+                  ),
+                  _ActionCard(
+                    icon: Icons.info,
+                    title: 'Cleanliness Issues',
+                    description: 'Cleanliness issues in your area',
+                    onTap: () => Navigator.pushNamed(context, '/driver_cleanliness_issue_list'),
+                    color: Colors.orange[700]!,
+                  ),
+                  _ActionCard(
+                    icon: Icons.folder_special,
+                    title: 'Special Requests',
+                    description: 'View special requests from citizens',
+                    onTap: () => Navigator.pushNamed(context, '/driver_special_garbage_screen'),
+                    color: Colors.blue[600]!,
+                  ),
+                  _ActionCard(
+                    icon: Icons.build,
+                    title: 'Report Breakdown',
+                    description: 'Report vehicle breakdowns',
+                    onTap: () => Navigator.pushNamed(context, '/breakdown_screen'),
+                    color: Colors.purple[700]!,
+                  ),
+                ],
+              ),
+            ),
+
+            // Tips Section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              child: Text(
+                'Daily Tips',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ),
+            
+            // Scrollable tips cards
+            SizedBox(
+              height: 180,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  _TipCard(
+                    icon: Icons.schedule,
+                    title: 'Efficient Routing',
+                    description: 'Plan your collection route to minimize fuel usage and save time.',
+                    color: const Color(0xFF59A867),
+                  ),
+                  _TipCard(
+                    icon: Icons.local_gas_station,
+                    title: 'Fuel Conservation',
+                    description: 'Avoid idling the vehicle for long periods to save fuel and reduce emissions.',
+                    color: Colors.blue[600]!,
+                  ),
+                  _TipCard(
+                    icon: Icons.health_and_safety,
+                    title: 'Safety First',
+                    description: 'Always wear proper safety equipment when handling waste materials.',
+                    color: Colors.amber[800]!,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
       bottomNavigationBar: DriversNavbar(
         currentIndex: _currentIndex,
@@ -212,33 +388,133 @@ class _ActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: color),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: color),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-              textAlign: TextAlign.center,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              spreadRadius: 0,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8), // Reduced spacing
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 15, // Slightly reduced font size
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 2), // Reduced spacing
+            Flexible(  // Added Flexible to prevent overflow
+              child: Text(
+                description,
+                style: TextStyle(
+                  fontSize: 11, // Reduced font size
+                  color: Colors.grey[600],
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TipCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+
+  const _TipCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(left: 4, right: 8, bottom: 8, top: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min, // Added to prevent overflow
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 6), // Reduced spacing
+                Flexible( // Added Flexible to prevent overflow
+                  child: Text(
+                    description,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
+                    ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
