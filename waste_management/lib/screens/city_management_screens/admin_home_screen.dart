@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:waste_management/models/breakdownReportModel.dart';
+import 'package:waste_management/models/routeModel.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/breakdown_service.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
 import 'package:waste_management/widgets/admin_navbar.dart';
+import 'package:waste_management/screens/city_management_screens/admin_all_residents_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_all_drivers_screen.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -37,67 +40,70 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Future<void> _loadStatistics() async {
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() => isLoading = true);
+    setState(() => isLoading = true);
 
-  try {
-    // Get active routes count - ensure this method exists in your RouteService
     try {
-      final routes = await _routeService.getTodayScheduledRoutes();
-      if (mounted) activeRoutes = routes.length;
-    } catch (e) {
-      print('Error loading routes: $e');
-      if (mounted) activeRoutes = 0;
-    }
+      // Get active routes using the proper method from RouteService
+      try {
+        final routes = await _routeService.getTodayScheduledRoutes();
+        if (mounted) setState(() => activeRoutes = routes.length);
+      } catch (e) {
+        print('Error loading active routes: $e');
+        if (mounted) setState(() => activeRoutes = 0);
+      }
 
-    // Get pending cleanliness issues count
-    try {
-      final cleanlinessIssues = await _cleanlinessService.getPendingIssues();
-      if (mounted) pendingCleanlinessIssues = cleanlinessIssues.length;
-    } catch (e) {
-      print('Error loading cleanliness issues: $e');
-      if (mounted) pendingCleanlinessIssues = 0;
-    }
-    
-    // Get pending breakdowns - alternative approach with more error handling
-    try {
-      // Check if there's a method to directly get pending breakdowns without using streams
-      // If not available, we'll use the stream with proper error handling
-      final breakdownStream = _breakdownService.getBreakdownReportsByStatus(BreakdownStatus.pending);
-      final breakdownsList = await breakdownStream.first.catchError((error) {
-        print('Error in breakdown stream: $error');
-        return <BreakdownReport>[];
-      });
-      
-      if (mounted) pendingBreakdowns = breakdownsList.length;
-    } catch (e) {
-      print('Error loading breakdowns: $e');
-      if (mounted) pendingBreakdowns = 0;
-    }
+      // Get pending cleanliness issues count
+      try {
+        final cleanlinessIssues = await _cleanlinessService.getPendingIssues();
+        if (mounted)
+          setState(() => pendingCleanlinessIssues = cleanlinessIssues.length);
+      } catch (e) {
+        print('Error loading cleanliness issues: $e');
+        if (mounted) setState(() => pendingCleanlinessIssues = 0);
+      }
 
-    // Get pending special garbage requests
-    try {
-      final specialRequests = await _specialRequestService.getPendingRequests();
-      if (mounted) pendingSpecialRequests = specialRequests.length;
+      // Get pending breakdowns using the proper method from BreakdownService
+      try {
+        // Use the stream with proper error handling and first value
+        final breakdownsList = await _breakdownService
+            .getBreakdownReportsByStatus(BreakdownStatus.pending)
+            .first
+            .catchError((error) {
+              print('Error in breakdown stream: $error');
+              return <BreakdownReport>[];
+            });
+
+        if (mounted) setState(() => pendingBreakdowns = breakdownsList.length);
+      } catch (e) {
+        print('Error loading breakdowns: $e');
+        if (mounted) setState(() => pendingBreakdowns = 0);
+      }
+
+      // Get pending special garbage requests
+      try {
+        final specialRequests =
+            await _specialRequestService.getPendingRequests();
+        if (mounted)
+          setState(() => pendingSpecialRequests = specialRequests.length);
+      } catch (e) {
+        print('Error loading special requests: $e');
+        if (mounted) setState(() => pendingSpecialRequests = 0);
+      }
     } catch (e) {
-      print('Error loading special requests: $e');
-      if (mounted) pendingSpecialRequests = 0;
-    }
-    
-  } catch (e) {
-    print('Error loading statistics: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load statistics: ${e.toString()}')),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => isLoading = false);
+      print('Error loading statistics: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load statistics: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
-}
 
   void _onTabTapped(int index) {
     setState(() {
@@ -163,21 +169,18 @@ class _AdminHomeState extends State<AdminHome> {
         appBar: AppBar(
           title: const Text(
             'Welcome Admin',
-            style: TextStyle(fontWeight: FontWeight.bold , color: Colors.white),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
           ),
           backgroundColor: primaryColor,
           elevation: 0,
           automaticallyImplyLeading: false,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadStatistics,
-              tooltip: 'Refresh',
-            ),
+
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: _showLogoutConfirmation,
               tooltip: 'Logout',
+              color: Colors.white,
             ),
           ],
         ),
@@ -257,9 +260,7 @@ class _AdminHomeState extends State<AdminHome> {
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 2),
-          ],
+          children: [const SizedBox(height: 2)],
         ),
       ],
     );
@@ -293,19 +294,7 @@ class _AdminHomeState extends State<AdminHome> {
                   children: [
                     Row(
                       children: [
-                        _buildStatCard(
-                          title: 'Active Routes',
-                          value: activeRoutes.toString(),
-                          iconData: Icons.directions,
-                          backgroundColor: const Color(0xFFE8F5E9),
-                          iconColor: const Color(0xFF59A867),
-                          textColor: const Color(0xFF59A867),
-                          onTap:
-                              () => Navigator.pushNamed(
-                                context,
-                                '/admin_route_list',
-                              ),
-                        ),
+                        _buildActiveRoutesStream(),
                         _buildStatCard(
                           title: 'Cleanliness Issues',
                           value: pendingCleanlinessIssues.toString(),
@@ -323,19 +312,7 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     Row(
                       children: [
-                        _buildStatCard(
-                          title: 'Breakdowns',
-                          value: pendingBreakdowns.toString(),
-                          iconData: Icons.car_repair,
-                          backgroundColor: const Color(0xFFFFF8E1),
-                          iconColor: Colors.orange,
-                          textColor: Colors.orange,
-                          onTap:
-                              () => Navigator.pushNamed(
-                                context,
-                                '/admin_breakdown',
-                              ),
-                        ),
+                        _buildBreakdownIssuesStream(),
                         _buildStatCard(
                           title: 'Special Requests',
                           value: pendingSpecialRequests.toString(),
@@ -419,6 +396,96 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+  Widget _buildActiveRoutesStream() {
+    return StreamBuilder<List<RouteModel>>(
+      stream: _routeService.getActiveRoutes(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return _buildStatCard(
+            title: 'Active Routes',
+            value: '...',
+            iconData: Icons.directions,
+            backgroundColor: const Color(0xFFE8F5E9),
+            iconColor: const Color(0xFF59A867),
+            textColor: const Color(0xFF59A867),
+            onTap: () => Navigator.pushNamed(context, '/admin_route_list'),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return _buildStatCard(
+            title: 'Active Routes',
+            value: 'Error',
+            iconData: Icons.directions,
+            backgroundColor: const Color(0xFFE8F5E9),
+            iconColor: const Color(0xFF59A867),
+            textColor: Colors.red,
+            onTap: () => Navigator.pushNamed(context, '/admin_route_list'),
+          );
+        }
+
+        final activeRoutes = snapshot.data?.length ?? 0;
+
+        return _buildStatCard(
+          title: 'Active Routes',
+          value: activeRoutes.toString(),
+          iconData: Icons.directions,
+          backgroundColor: const Color(0xFFE8F5E9),
+          iconColor: const Color(0xFF59A867),
+          textColor: const Color(0xFF59A867),
+          onTap: () => Navigator.pushNamed(context, '/admin_route_list'),
+        );
+      },
+    );
+  }
+
+  Widget _buildBreakdownIssuesStream() {
+    return StreamBuilder<List<BreakdownReport>>(
+      stream: _breakdownService.getBreakdownReportsByStatus(
+        BreakdownStatus.pending,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return _buildStatCard(
+            title: 'Breakdowns',
+            value: '...',
+            iconData: Icons.car_repair,
+            backgroundColor: const Color(0xFFFFF8E1),
+            iconColor: Colors.orange,
+            textColor: Colors.orange,
+            onTap: () => Navigator.pushNamed(context, '/admin_breakdown'),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return _buildStatCard(
+            title: 'Breakdowns',
+            value: 'Error',
+            iconData: Icons.car_repair,
+            backgroundColor: const Color(0xFFFFF8E1),
+            iconColor: Colors.orange,
+            textColor: Colors.red,
+            onTap: () => Navigator.pushNamed(context, '/admin_breakdown'),
+          );
+        }
+
+        final breakdownIssues = snapshot.data?.length ?? 0;
+
+        return _buildStatCard(
+          title: 'Breakdowns',
+          value: breakdownIssues.toString(),
+          iconData: Icons.car_repair,
+          backgroundColor: const Color(0xFFFFF8E1),
+          iconColor: Colors.orange,
+          textColor: Colors.orange,
+          onTap: () => Navigator.pushNamed(context, '/admin_breakdown'),
+        );
+      },
+    );
+  }
+
   Widget _buildQuickActionsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,7 +548,13 @@ class _AdminHomeState extends State<AdminHome> {
               icon: Icons.people,
               backgroundColor: const Color(0xFFF3E5F5),
               iconColor: Colors.purple,
-              onTap: () => Navigator.pushNamed(context, '/admin_settings'),
+              onTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminAllResidentsScreen(),
+                    ),
+                  ),
             ),
             _buildQuickActionButton(
               title: 'All Drivers',
@@ -489,9 +562,11 @@ class _AdminHomeState extends State<AdminHome> {
               backgroundColor: const Color(0xFFE3F2FD),
               iconColor: Colors.blue,
               onTap:
-                  () => Navigator.pushNamed(
+                  () => Navigator.push(
                     context,
-                    '/admin_register_all_drivers',
+                    MaterialPageRoute(
+                      builder: (context) => const AdminAllDriversScreen(),
+                    ),
                   ),
             ),
           ],

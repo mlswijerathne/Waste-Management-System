@@ -11,7 +11,8 @@ class AdminRouteCreationScreen extends StatefulWidget {
   const AdminRouteCreationScreen({Key? key}) : super(key: key);
 
   @override
-  _AdminRouteCreationScreenState createState() => _AdminRouteCreationScreenState();
+  _AdminRouteCreationScreenState createState() =>
+      _AdminRouteCreationScreenState();
 }
 
 class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
@@ -20,7 +21,8 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _driverNameController = TextEditingController();
-  final TextEditingController _driverContactController = TextEditingController();
+  final TextEditingController _driverContactController =
+      TextEditingController();
   final TextEditingController _truckIdController = TextEditingController();
 
   // App theme color
@@ -42,11 +44,11 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   Set<Polyline> _polylines = {};
 
   bool _isCreatingRoute = false;
-  
+
   // Page controller for sliding between sections
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  
+
   // Form validation key
   final _formKey = GlobalKey<FormState>();
 
@@ -56,7 +58,7 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   TimeOfDay _scheduleStartTime = TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _scheduleEndTime = TimeOfDay(hour: 17, minute: 0);
   String _wasteCategory = 'mixed';
-  
+
   // Map style
   bool _mapDarkMode = false;
 
@@ -124,18 +126,20 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
 
   void _createResidentMarkers() {
     Set<Marker> markers = {};
-    
+
     for (int i = 0; i < _residents.length; i++) {
       UserModel resident = _residents[i];
-      
+
       // Skip if resident doesn't have location data
       if (resident.latitude == null || resident.longitude == null) continue;
-      
+
       markers.add(
         Marker(
           markerId: MarkerId('resident_${resident.uid}'),
           position: LatLng(resident.latitude!, resident.longitude!),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueYellow,
+          ),
           infoWindow: InfoWindow(
             title: resident.name,
             snippet: resident.address,
@@ -146,51 +150,55 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
         ),
       );
     }
-    
+
     setState(() => _residentMarkers = markers);
   }
-  
+
   void _showResidentLocationDialog(UserModel resident) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add to Route'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Do you want to add this location to the route?'),
-            SizedBox(height: 10),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.person, color: primaryColor),
-              title: Text(resident.name),
-              subtitle: Text(resident.address ?? 'No address provided'),
-              dense: true,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Add to Route'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Do you want to add this location to the route?'),
+                SizedBox(height: 10),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.person, color: primaryColor),
+                  title: Text(resident.name),
+                  subtitle: Text(resident.address ?? 'No address provided'),
+                  dense: true,
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _addResidentMarker(resident);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _addResidentMarker(resident);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                child: Text('Add as Point'),
+              ),
+            ],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Text('Add as Point'),
           ),
-        ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
     );
   }
-  
+
   void _addResidentMarker(UserModel resident) {
     final position = LatLng(resident.latitude!, resident.longitude!);
     _addMarkerAtPosition(position, resident.name);
@@ -205,7 +213,9 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
           Marker(
             markerId: MarkerId('start'),
             position: position,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueGreen,
+            ),
             infoWindow: InfoWindow(
               title: 'Start Point',
               snippet: residentName != null ? 'Resident: $residentName' : null,
@@ -220,14 +230,16 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
           Marker(
             markerId: MarkerId('end'),
             position: position,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueRed,
+            ),
             infoWindow: InfoWindow(
               title: 'End Point',
               snippet: residentName != null ? 'Resident: $residentName' : null,
             ),
           ),
         );
-        
+
         // Draw basic line between points
         _polylines.add(
           Polyline(
@@ -247,7 +259,9 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
           Marker(
             markerId: MarkerId('start'),
             position: position,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueGreen,
+            ),
             infoWindow: InfoWindow(
               title: 'Start Point',
               snippet: residentName != null ? 'Resident: $residentName' : null,
@@ -256,7 +270,7 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
         );
         _showSnackBar('Route reset. New start point added', isError: false);
       }
-        print('Driver ID: $_selectedDriverId');
+      print('Driver ID: $_selectedDriverId');
     });
   }
 
@@ -265,89 +279,86 @@ class _AdminRouteCreationScreenState extends State<AdminRouteCreationScreen> {
   }
 
   Future<void> _createRoute() async {
-  final formState = _formKey.currentState;
-if (formState == null) {
-  _showSnackBar('Form is not available. Please try again.');
-  return;
-}
-if (!formState.validate()) {
-  _showSnackBar('Please correct the errors in the form');
-  return;
-}
+    final formState = _formKey.currentState;
+    if (formState == null) {
+      _showSnackBar('Form is not available. Please try again.');
+      return;
+    }
+    if (!formState.validate()) {
+      _showSnackBar('Please correct the errors in the form');
+      return;
+    }
 
+    if (_startPoint == null || _endPoint == null) {
+      _showSnackBar('Start or End point is missing');
+      setState(() => _isCreatingRoute = false);
+      return;
+    }
 
-  if (_startPoint == null || _endPoint == null) {
-  _showSnackBar('Start or End point is missing');
-  setState(() => _isCreatingRoute = false);
-  return;
-}
+    print('Start: $_startPoint, End: $_endPoint');
 
-print('Start: $_startPoint, End: $_endPoint');
+    if (_scheduleFrequency != 'once' && _selectedDays.isEmpty) {
+      _showSnackBar('Please select at least one day for recurring collection');
+      return;
+    }
 
+    if (_selectedDriverId == null) {
+      _showSnackBar('Please select a driver for this route');
+      return;
+    }
 
+    setState(() => _isCreatingRoute = true);
 
-  if (_scheduleFrequency != 'once' && _selectedDays.isEmpty) {
-    _showSnackBar('Please select at least one day for recurring collection');
-    return;
-  }
-
-  if (_selectedDriverId == null) {
-    _showSnackBar('Please select a driver for this route');
-    return;
-  }
-
-  setState(() => _isCreatingRoute = true);
-
-  try {
-    await _routeService.saveScheduledRoute(
-      _nameController.text.trim(),
-      _descriptionController.text.trim(),
-      _startPoint!,
-      _endPoint!,
-      assignedDriverId: _selectedDriverId,
-      driverName: _driverNameController.text.trim(),
-      driverContact: _driverContactController.text.trim(),
-      truckId: _truckIdController.text.trim(),
-      scheduleFrequency: _scheduleFrequency,
-      scheduleDays: _selectedDays,
-      scheduleStartTime: _scheduleStartTime,
-      scheduleEndTime: _scheduleEndTime,
-      wasteCategory: _wasteCategory,
-    );
-
-    _showSnackBar('Route created successfully! 🎉', isError: false);
-
-    // Clear the form
-    _formKey.currentState!.reset();
-    _nameController.clear();
-    _descriptionController.clear();
-    _driverNameController.clear();
-    _driverContactController.clear();
-    _truckIdController.clear();
-    setState(() {
-      _selectedDriverId = null;
-      _markers.clear();
-      _polylines.clear();
-      _startPoint = null;
-      _endPoint = null;
-      _scheduleFrequency = 'once';
-      _selectedDays = [];
-      _scheduleStartTime = TimeOfDay(hour: 8, minute: 0);
-      _scheduleEndTime = TimeOfDay(hour: 17, minute: 0);
-      _wasteCategory = 'mixed';
-      _currentPage = 0;
-      _pageController.animateToPage(
-        0,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+    try {
+      await _routeService.saveScheduledRoute(
+        _nameController.text.trim(),
+        _descriptionController.text.trim(),
+        _startPoint!,
+        _endPoint!,
+        assignedDriverId: _selectedDriverId,
+        driverName: _driverNameController.text.trim(),
+        driverContact: _driverContactController.text.trim(),
+        truckId: _truckIdController.text.trim(),
+        scheduleFrequency: _scheduleFrequency,
+        scheduleDays: _selectedDays,
+        scheduleStartTime: _scheduleStartTime,
+        scheduleEndTime: _scheduleEndTime,
+        wasteCategory: _wasteCategory,
       );
-    });
-  } catch (e) {
-    _showSnackBar('Error creating route: $e');
-  } finally {
-    setState(() => _isCreatingRoute = false);
+
+      _showSnackBar('Route created successfully! 🎉', isError: false);
+
+      // Clear the form
+      _formKey.currentState!.reset();
+      _nameController.clear();
+      _descriptionController.clear();
+      _driverNameController.clear();
+      _driverContactController.clear();
+      _truckIdController.clear();
+      setState(() {
+        _selectedDriverId = null;
+        _markers.clear();
+        _polylines.clear();
+        _startPoint = null;
+        _endPoint = null;
+        _scheduleFrequency = 'once';
+        _selectedDays = [];
+        _scheduleStartTime = TimeOfDay(hour: 8, minute: 0);
+        _scheduleEndTime = TimeOfDay(hour: 17, minute: 0);
+        _wasteCategory = 'mixed';
+        _currentPage = 0;
+        _pageController.animateToPage(
+          0,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    } catch (e) {
+      _showSnackBar('Error creating route: $e');
+    } finally {
+      setState(() => _isCreatingRoute = false);
+    }
   }
-}
 
   String _getFormattedTime(TimeOfDay time) {
     final hour = time.hour.toString().padLeft(2, '0');
@@ -376,7 +387,7 @@ print('Start: $_startPoint, End: $_endPoint');
   Widget _buildStepCircle(int step, String label) {
     final isActive = _currentPage == step;
     final isCompleted = _currentPage > step;
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -386,24 +397,28 @@ print('Start: $_startPoint, End: $_endPoint');
           decoration: BoxDecoration(
             color: isActive || isCompleted ? primaryColor : Colors.grey[300],
             shape: BoxShape.circle,
-            boxShadow: isActive ? [
-              BoxShadow(
-                color: primaryColor.withOpacity(0.3),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ] : null,
+            boxShadow:
+                isActive
+                    ? [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                    : null,
           ),
           child: Center(
-            child: isCompleted 
-                ? Icon(Icons.check, color: Colors.white, size: 16)
-                : Text(
-                    '${step + 1}',
-                    style: TextStyle(
-                      color: isActive ? Colors.white : Colors.grey[600],
-                      fontWeight: FontWeight.bold,
+            child:
+                isCompleted
+                    ? Icon(Icons.check, color: Colors.white, size: 16)
+                    : Text(
+                      '${step + 1}',
+                      style: TextStyle(
+                        color: isActive ? Colors.white : Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
           ),
         ),
         SizedBox(height: 4),
@@ -421,7 +436,7 @@ print('Start: $_startPoint, End: $_endPoint');
 
   Widget _buildStepDivider(int beforeStep) {
     final isActive = _currentPage > beforeStep;
-    
+
     return Container(
       width: 40,
       height: 2,
@@ -433,150 +448,163 @@ print('Start: $_startPoint, End: $_endPoint');
     setState(() {
       _mapDarkMode = !_mapDarkMode;
     });
-    
+
     if (_mapController != null) {
-      _mapController!.setMapStyle(_mapDarkMode 
-          ? '[{"featureType":"all","elementType":"geometry","stylers":[{"color":"#242f3e"}]},{"featureType":"all","elementType":"labels.text.stroke","stylers":[{"lightness":-80}]},{"featureType":"administrative","elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},{"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#6b9a76"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#212a37"}]},{"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9ca5b3"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#746855"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#f3d19c"}]},{"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},{"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},{"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#515c6d"}]},{"featureType":"water","elementType":"labels.text.stroke","stylers":[{"lightness":-20}]}]'
-          : null);
+      _mapController!.setMapStyle(
+        _mapDarkMode
+            ? '[{"featureType":"all","elementType":"geometry","stylers":[{"color":"#242f3e"}]},{"featureType":"all","elementType":"labels.text.stroke","stylers":[{"lightness":-80}]},{"featureType":"administrative","elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},{"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#6b9a76"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#212a37"}]},{"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9ca5b3"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#746855"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#f3d19c"}]},{"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},{"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},{"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#515c6d"}]},{"featureType":"water","elementType":"labels.text.stroke","stylers":[{"lightness":-20}]}]'
+            : null,
+      );
     }
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: Text(
-        'Create Waste Collection Route',
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-      backgroundColor: primaryColor,
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: Icon(Icons.list_alt_rounded),
-          tooltip: 'View Routes',
-          onPressed: () {
-            Navigator.pushNamed(context, '/admin_route_list');
-          },
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Create Waste Collection Route',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        IconButton(
-          icon: Icon(_mapDarkMode ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined),
-          tooltip: _mapDarkMode ? 'Light Mode' : 'Dark Mode',
-          onPressed: _toggleMapStyle,
-        ),
-      ],
-    ),
-    body: SafeArea(
-      child: Column(
-        children: [
-          _buildStepIndicator(),
-          Expanded(
-            child: Form(
-              key: _formKey,
-              child: PageView(
-                controller: _pageController,
-                physics: NeverScrollableScrollPhysics(),
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index);
-                },
-                children: [
-                  _buildMapPage(),
-                  _buildRouteDetailsPage(),
-                  _buildSchedulePage(),
-                  _buildDriverPage(),
-                ],
-              ),
-            ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.list_alt_rounded),
+            tooltip: 'View Routes',
+            onPressed: () {
+              Navigator.pushNamed(context, '/admin_route_list');
+            },
           ),
-
+          IconButton(
+            icon: Icon(
+              _mapDarkMode
+                  ? Icons.wb_sunny_outlined
+                  : Icons.nights_stay_outlined,
+            ),
+            tooltip: _mapDarkMode ? 'Light Mode' : 'Dark Mode',
+            onPressed: _toggleMapStyle,
+          ),
         ],
       ),
-    ),
-    bottomNavigationBar: SafeArea(
-  child: BottomAppBar(
-    color: Colors.white,
-    elevation: 8,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              icon: Icon(Icons.arrow_back),
-              label: Text('Previous'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _currentPage > 0 ? primaryColor : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildStepIndicator(),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: PageView(
+                  controller: _pageController,
+                  physics: NeverScrollableScrollPhysics(),
+                  onPageChanged: (index) {
+                    setState(() => _currentPage = index);
+                  },
+                  children: [
+                    _buildMapPage(),
+                    _buildRouteDetailsPage(),
+                    _buildSchedulePage(),
+                    _buildDriverPage(),
+                  ],
                 ),
               ),
-              onPressed: _currentPage > 0
-                  ? () {
-                      _pageController.previousPage(
-                        duration: Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    }
-                  : null,
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: BottomAppBar(
+          color: Colors.white,
+          elevation: 8,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.arrow_back),
+                    label: Text('Previous'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          _currentPage > 0 ? primaryColor : Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed:
+                        _currentPage > 0
+                            ? () {
+                              _pageController.previousPage(
+                                duration: Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                            : null,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child:
+                      _currentPage == 3
+                          ? ElevatedButton.icon(
+                            icon:
+                                _isCreatingRoute
+                                    ? SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                    : Icon(Icons.check),
+                            label: Text(
+                              _isCreatingRoute ? 'Creating...' : 'Create',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  _markers.length < 2 || _isCreatingRoute
+                                      ? Colors.grey
+                                      : primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed:
+                                _markers.length < 2 || _isCreatingRoute
+                                    ? null
+                                    : _createRoute,
+                          )
+                          : ElevatedButton.icon(
+                            icon: Icon(Icons.arrow_forward),
+                            label: Text('Next'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () {
+                              _pageController.nextPage(
+                                duration: Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                          ),
+                ),
+              ],
             ),
           ),
-          SizedBox(width: 12),
-          Expanded(
-            child: _currentPage == 3
-                ? ElevatedButton.icon(
-                    icon: _isCreatingRoute
-                        ? SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(Icons.check),
-                    label: Text(_isCreatingRoute ? 'Creating...' : 'Create'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _markers.length < 2 || _isCreatingRoute
-                          ? Colors.grey
-                          : primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: _markers.length < 2 || _isCreatingRoute
-                        ? null
-                        : _createRoute,
-                  )
-                : ElevatedButton.icon(
-                    icon: Icon(Icons.arrow_forward),
-                    label: Text('Next'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () {
-                      _pageController.nextPage(
-                        duration: Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                  ),
-          ),
-        ],
+        ),
       ),
-    ),
-  ),
-),
-  );
-}
+    );
+  }
 
   Widget _buildMapPage() {
     return Stack(
@@ -590,20 +618,38 @@ Widget build(BuildContext context) {
           onMapCreated: (controller) {
             _mapController = controller;
             if (_mapDarkMode) {
-              controller.setMapStyle('[{"featureType":"all","elementType":"geometry","stylers":[{"color":"#242f3e"}]},{"featureType":"all","elementType":"labels.text.stroke","stylers":[{"lightness":-80}]},{"featureType":"administrative","elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},{"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#6b9a76"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#212a37"}]},{"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9ca5b3"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#746855"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#f3d19c"}]},{"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},{"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},{"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#515c6d"}]},{"featureType":"water","elementType":"labels.text.stroke","stylers":[{"lightness":-20}]}]');
+              controller.setMapStyle(
+                '[{"featureType":"all","elementType":"geometry","stylers":[{"color":"#242f3e"}]},{"featureType":"all","elementType":"labels.text.stroke","stylers":[{"lightness":-80}]},{"featureType":"administrative","elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},{"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#6b9a76"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#212a37"}]},{"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9ca5b3"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#746855"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#f3d19c"}]},{"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},{"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},{"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#515c6d"}]},{"featureType":"water","elementType":"labels.text.stroke","stylers":[{"lightness":-20}]}]',
+              );
             }
           },
           onCameraMove: (position) {}, // Keep this to allow dragging
-          gestureRecognizers: Set()
-            ..add(Factory<PanGestureRecognizer>(() => PanGestureRecognizer()))
-            ..add(Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()))
-            ..add(Factory<TapGestureRecognizer>(() => TapGestureRecognizer()))
-            ..add(Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer())),
+          gestureRecognizers:
+              Set()
+                ..add(
+                  Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
+                )
+                ..add(
+                  Factory<ScaleGestureRecognizer>(
+                    () => ScaleGestureRecognizer(),
+                  ),
+                )
+                ..add(
+                  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+                )
+                ..add(
+                  Factory<VerticalDragGestureRecognizer>(
+                    () => VerticalDragGestureRecognizer(),
+                  ),
+                ),
           zoomGesturesEnabled: true,
           scrollGesturesEnabled: true,
           rotateGesturesEnabled: true,
           tiltGesturesEnabled: true,
-          markers: _showResidentLocations ? {..._markers, ..._residentMarkers} : _markers,
+          markers:
+              _showResidentLocations
+                  ? {..._markers, ..._residentMarkers}
+                  : _markers,
           polylines: _polylines,
           myLocationEnabled: true,
           myLocationButtonEnabled: false,
@@ -612,7 +658,7 @@ Widget build(BuildContext context) {
           compassEnabled: true,
           onTap: _addMarker,
         ),
-        
+
         // Floating controls
         Positioned(
           top: 16,
@@ -626,7 +672,10 @@ Widget build(BuildContext context) {
                   _mapController?.animateCamera(
                     CameraUpdate.newCameraPosition(
                       CameraPosition(
-                        target: LatLng(6.9271, 79.8612), // Default or get from GPS
+                        target: LatLng(
+                          6.9271,
+                          79.8612,
+                        ), // Default or get from GPS
                         zoom: 15,
                       ),
                     ),
@@ -661,16 +710,22 @@ Widget build(BuildContext context) {
                       _startPoint = null;
                       _endPoint = null;
                     });
-                    _showSnackBar('Route points have been reset', isError: false);
+                    _showSnackBar(
+                      'Route points have been reset',
+                      isError: false,
+                    );
                   } else {
-                    _showSnackBar('Tap on the map to add route points', isError: false);
+                    _showSnackBar(
+                      'Tap on the map to add route points',
+                      isError: false,
+                    );
                   }
                 },
               ),
             ],
           ),
         ),
-        
+
         // Resident locations toggle
         Positioned(
           bottom: 16,
@@ -678,7 +733,9 @@ Widget build(BuildContext context) {
           right: 16,
           child: Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
@@ -702,7 +759,10 @@ Widget build(BuildContext context) {
                             _showResidentLocations = value;
                           });
                           if (value && _isLoadingResidents) {
-                            _showSnackBar('Loading resident locations...', isError: false);
+                            _showSnackBar(
+                              'Loading resident locations...',
+                              isError: false,
+                            );
                           }
                         },
                       ),
@@ -724,14 +784,16 @@ Widget build(BuildContext context) {
             ),
           ),
         ),
-        
+
         // Map legend
         Positioned(
           top: 16,
           left: 16,
           child: Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -740,10 +802,7 @@ Widget build(BuildContext context) {
                 children: [
                   Text(
                     'Map Legend',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   SizedBox(height: 8),
                   Row(
@@ -765,7 +824,11 @@ Widget build(BuildContext context) {
                     SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.location_on, color: Colors.yellow[700], size: 18),
+                        Icon(
+                          Icons.location_on,
+                          color: Colors.yellow[700],
+                          size: 18,
+                        ),
                         SizedBox(width: 4),
                         Text('Resident', style: TextStyle(fontSize: 13)),
                       ],
@@ -776,7 +839,7 @@ Widget build(BuildContext context) {
             ),
           ),
         ),
-        
+
         // Loading indicator for residents
         if (_isLoadingResidents && _showResidentLocations)
           Positioned(
@@ -785,9 +848,14 @@ Widget build(BuildContext context) {
             child: Card(
               color: Colors.white,
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -820,11 +888,7 @@ Widget build(BuildContext context) {
         color: Colors.white,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: IconButton(
@@ -838,134 +902,137 @@ Widget build(BuildContext context) {
 
   Widget _buildRouteDetailsPage() {
     return SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader('Route Details', Icons.route),
-            SizedBox(height: 16),
-            
-            _buildTextFormField(
-              controller: _nameController,
-              labelText: 'Route Name',
-              prefixIcon: Icons.label_outline,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a route name';
-                }
-                return null;
-              },
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Route Details', Icons.route),
+          SizedBox(height: 16),
+
+          _buildTextFormField(
+            controller: _nameController,
+            labelText: 'Route Name',
+            prefixIcon: Icons.label_outline,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a route name';
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: 16),
+
+          _buildTextFormField(
+            controller: _descriptionController,
+            labelText: 'Description',
+            prefixIcon: Icons.description_outlined,
+            maxLines: 3,
+            hintText: 'Enter route description and any special instructions',
+          ),
+          SizedBox(height: 20),
+
+          _buildSectionHeader('Route Status', Icons.info_outline),
+          SizedBox(height: 16),
+
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            SizedBox(height: 16),
-            
-            _buildTextFormField(
-              controller: _descriptionController,
-              labelText: 'Description',
-              prefixIcon: Icons.description_outlined,
-              maxLines: 3,
-              hintText: 'Enter route description and any special instructions',
-            ),
-            SizedBox(height: 20),
-            
-            _buildSectionHeader('Route Status', Icons.info_outline),
-            SizedBox(height: 16),
-            
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _startPoint != null && _endPoint != null
-                              ? Icons.check_circle
-                              : Icons.error_outline,
-                          color: _startPoint != null && _endPoint != null
-                              ? primaryColor
-                              : Colors.orange,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Route Points',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatusItem(
-                            'Start Point',
-                            _startPoint != null ? 'Set ✓' : 'Not Set',
-                            _startPoint != null,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildStatusItem(
-                            'End Point',
-                            _endPoint != null ? 'Set ✓' : 'Not Set',
-                            _endPoint != null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    if (_startPoint != null && _endPoint != null) ...[
-                      SizedBox(height: 16),
-                      Text(
-                        'Your route is ready! Continue to add scheduling details.',
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontStyle: FontStyle.italic,
-                        ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _startPoint != null && _endPoint != null
+                            ? Icons.check_circle
+                            : Icons.error_outline,
+                        color:
+                            _startPoint != null && _endPoint != null
+                                ? primaryColor
+                                : Colors.orange,
                       ),
-                    ] else ...[
-                      SizedBox(height: 16),
+                      SizedBox(width: 8),
                       Text(
-                        'Go back to the map and set the required points by tapping on the map.',
+                        'Route Points',
                         style: TextStyle(
-                          color: Colors.orange[700],
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
                     ],
+                  ),
+                  SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatusItem(
+                          'Start Point',
+                          _startPoint != null ? 'Set ✓' : 'Not Set',
+                          _startPoint != null,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatusItem(
+                          'End Point',
+                          _endPoint != null ? 'Set ✓' : 'Not Set',
+                          _endPoint != null,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (_startPoint != null && _endPoint != null) ...[
+                    SizedBox(height: 16),
+                    Text(
+                      'Your route is ready! Continue to add scheduling details.',
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ] else ...[
+                    SizedBox(height: 16),
+                    Text(
+                      'Go back to the map and set the required points by tapping on the map.',
+                      style: TextStyle(
+                        color: Colors.orange[700],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
-            SizedBox(height: 20),
-            
-            Center(
-              child: OutlinedButton.icon(
-                icon: Icon(Icons.map),
-                label: Text('Return to Map'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryColor,
-                  side: BorderSide(color: primaryColor),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                onPressed: () {
-                  _pageController.animateToPage(
-                    0,
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
+          ),
+          SizedBox(height: 20),
+
+          Center(
+            child: OutlinedButton.icon(
+              icon: Icon(Icons.map),
+              label: Text('Return to Map'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primaryColor,
+                side: BorderSide(color: primaryColor),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
+              onPressed: () {
+                _pageController.animateToPage(
+                  0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSchedulePage() {
@@ -976,10 +1043,12 @@ Widget build(BuildContext context) {
         children: [
           _buildSectionHeader('Schedule Information', Icons.calendar_today),
           SizedBox(height: 16),
-          
+
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -987,66 +1056,42 @@ Widget build(BuildContext context) {
                 children: [
                   Text(
                     'How often should this route be collected?',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SizedBox(height: 16),
-                  
-                  // Frequency selection as segmented buttons
-                  Center(
-                    child: SegmentedButton<String>(
-                      segments: [
-                        ButtonSegment(
-                          value: 'once',
-                          label: Text('Once'),
-                          icon: Icon(Icons.looks_one),
-                        ),
-                        ButtonSegment(
-                          value: 'weekly',
-                          label: Text('Weekly'),
-                          icon: Icon(Icons.calendar_view_week),
-                        ),
-                        ButtonSegment(
-                          value: 'biweekly',
-                          label: Text('Biweekly'),
-                          icon: Icon(Icons.calendar_view_month),
-                        ),
-                        ButtonSegment(
-                          value: 'monthly',
-                          label: Text('Monthly'),
-                          icon: Icon(Icons.event),
-                        ),
-                      ],
-                      selected: {_scheduleFrequency},
-                      onSelectionChanged: (Set<String> newSelection) {
-                        setState(() {
-                          _scheduleFrequency = newSelection.first;
-                        });
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                          (Set<MaterialState> states) {
-                            if (states.contains(MaterialState.selected)) {
-                              return primaryColor;
-                            }
-                            return Colors.transparent;
-                          },
-                        ),
+
+                  // Frequency selection as vertical column with radio buttons
+                  Column(
+                    children: [
+                      _buildFrequencyOption('once', 'Once', Icons.looks_one),
+                      SizedBox(height: 8),
+                      _buildFrequencyOption(
+                        'weekly',
+                        'Weekly',
+                        Icons.calendar_view_week,
                       ),
-                    ),
+                      SizedBox(height: 8),
+                      _buildFrequencyOption(
+                        'biweekly',
+                        'Biweekly',
+                        Icons.calendar_view_month,
+                      ),
+                      SizedBox(height: 8),
+                      _buildFrequencyOption('monthly', 'Monthly', Icons.event),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
           SizedBox(height: 16),
-          
+
           if (_scheduleFrequency != 'once')
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1060,7 +1105,7 @@ Widget build(BuildContext context) {
                       ),
                     ),
                     SizedBox(height: 12),
-                    
+
                     // Day selection
                     Wrap(
                       spacing: 8,
@@ -1068,7 +1113,17 @@ Widget build(BuildContext context) {
                       children: List.generate(
                         7,
                         (i) => FilterChip(
-                          label: Text(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]),
+                          label: Text(
+                            [
+                              'Sun',
+                              'Mon',
+                              'Tue',
+                              'Wed',
+                              'Thu',
+                              'Fri',
+                              'Sat',
+                            ][i],
+                          ),
                           selected: _selectedDays.contains(i),
                           onSelected: (selected) {
                             setState(() {
@@ -1082,15 +1137,25 @@ Widget build(BuildContext context) {
                           selectedColor: primaryColor.withOpacity(0.2),
                           checkmarkColor: primaryColor,
                           labelStyle: TextStyle(
-                            color: _selectedDays.contains(i) ? primaryColor : Colors.black87,
-                            fontWeight: _selectedDays.contains(i) ? FontWeight.bold : FontWeight.normal,
+                            color:
+                                _selectedDays.contains(i)
+                                    ? primaryColor
+                                    : Colors.black87,
+                            fontWeight:
+                                _selectedDays.contains(i)
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                           ),
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
-                    
-                    if (_selectedDays.isEmpty && _scheduleFrequency != 'once') ...[
+
+                    if (_selectedDays.isEmpty &&
+                        _scheduleFrequency != 'once') ...[
                       SizedBox(height: 10),
                       Text(
                         'Please select at least one day',
@@ -1105,12 +1170,14 @@ Widget build(BuildContext context) {
                 ),
               ),
             ),
-          
+
           SizedBox(height: 16),
-          
+
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1118,13 +1185,10 @@ Widget build(BuildContext context) {
                 children: [
                   Text(
                     'Collection Time Window',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SizedBox(height: 16),
-                  
+
                   Row(
                     children: [
                       Expanded(
@@ -1144,10 +1208,14 @@ Widget build(BuildContext context) {
                                 );
                               },
                             );
-                            if (time != null) setState(() => _scheduleStartTime = time);
+                            if (time != null)
+                              setState(() => _scheduleStartTime = time);
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey[300]!),
                               borderRadius: BorderRadius.circular(8),
@@ -1165,7 +1233,10 @@ Widget build(BuildContext context) {
                                 SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    Icon(Icons.access_time, color: primaryColor),
+                                    Icon(
+                                      Icons.access_time,
+                                      color: primaryColor,
+                                    ),
                                     SizedBox(width: 8),
                                     Text(
                                       _getFormattedTime(_scheduleStartTime),
@@ -1199,10 +1270,14 @@ Widget build(BuildContext context) {
                                 );
                               },
                             );
-                            if (time != null) setState(() => _scheduleEndTime = time);
+                            if (time != null)
+                              setState(() => _scheduleEndTime = time);
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey[300]!),
                               borderRadius: BorderRadius.circular(8),
@@ -1220,7 +1295,10 @@ Widget build(BuildContext context) {
                                 SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    Icon(Icons.access_time, color: primaryColor),
+                                    Icon(
+                                      Icons.access_time,
+                                      color: primaryColor,
+                                    ),
                                     SizedBox(width: 8),
                                     Text(
                                       _getFormattedTime(_scheduleEndTime),
@@ -1243,10 +1321,12 @@ Widget build(BuildContext context) {
             ),
           ),
           SizedBox(height: 16),
-          
+
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1254,20 +1334,29 @@ Widget build(BuildContext context) {
                 children: [
                   Text(
                     'Waste Category',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SizedBox(height: 16),
-                  
+
                   // Waste category selection
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildWasteCategoryOption('organic', 'Organic', Icons.eco),
-                      _buildWasteCategoryOption('inorganic', 'Inorganic', Icons.delete),
-                      _buildWasteCategoryOption('mixed', 'Mixed', Icons.recycling),
+                      _buildWasteCategoryOption(
+                        'organic',
+                        'Organic',
+                        Icons.eco,
+                      ),
+                      _buildWasteCategoryOption(
+                        'inorganic',
+                        'Inorganic',
+                        Icons.delete,
+                      ),
+                      _buildWasteCategoryOption(
+                        'mixed',
+                        'Mixed',
+                        Icons.recycling,
+                      ),
                     ],
                   ),
                 ],
@@ -1281,7 +1370,7 @@ Widget build(BuildContext context) {
 
   Widget _buildWasteCategoryOption(String value, String label, IconData icon) {
     final isSelected = _wasteCategory == value;
-    
+
     return InkWell(
       onTap: () {
         setState(() => _wasteCategory = value);
@@ -1289,7 +1378,8 @@ Widget build(BuildContext context) {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent,
+          color:
+              isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? primaryColor : Colors.grey[300]!,
@@ -1326,129 +1416,146 @@ Widget build(BuildContext context) {
         children: [
           _buildSectionHeader('Driver Assignment', Icons.person),
           SizedBox(height: 16),
-          
+
           // Driver selection
           _isLoadingDrivers
               ? Center(
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(primaryColor)),
-                      SizedBox(height: 16),
-                      Text('Loading available drivers...'),
-                    ],
-                  ),
-                )
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                    ),
+                    SizedBox(height: 16),
+                    Text('Loading available drivers...'),
+                  ],
+                ),
+              )
               : Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Select Driver',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Driver',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      if (_drivers.isEmpty)
+                        Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.person_off,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No drivers available',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Please add drivers to the system first',
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: _selectedDriverId,
+                              hint: Text('Choose a driver'),
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: primaryColor,
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedDriverId = value;
+                                  // Find the selected driver and populate fields
+                                  if (value != null) {
+                                    final selectedDriver = _drivers.firstWhere(
+                                      (driver) => driver.uid == value,
+                                      orElse:
+                                          () => UserModel(
+                                            uid: '',
+                                            name: '',
+                                            role: '',
+                                            nic: '',
+                                            address: '',
+                                            contactNumber: '',
+                                            email: '',
+                                          ),
+                                    );
+
+                                    // Populate driver details
+                                    _driverNameController.text =
+                                        selectedDriver.name;
+                                    _driverContactController.text =
+                                        selectedDriver.contactNumber;
+
+                                    // Use the driver's ID as the truck ID
+                                    _truckIdController.text =
+                                        'TRUCK-${selectedDriver.uid.substring(0, 6)}';
+                                  } else {
+                                    _driverNameController.text = '';
+                                    _driverContactController.text = '';
+                                    _truckIdController.text = '';
+                                  }
+                                });
+                              },
+                              items:
+                                  _drivers.map((driver) {
+                                    return DropdownMenuItem<String>(
+                                      value: driver.uid,
+                                      child: Text(driver.name),
+                                    );
+                                  }).toList(),
+                            ),
                           ),
                         ),
-                        SizedBox(height: 16),
-                        
-                        if (_drivers.isEmpty)
-                          Center(
-                            child: Column(
-                              children: [
-                                Icon(Icons.person_off, size: 48, color: Colors.grey),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No drivers available',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Please add drivers to the system first',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                value: _selectedDriverId,
-                                hint: Text('Choose a driver'),
-                                icon: Icon(Icons.arrow_drop_down, color: primaryColor),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedDriverId = value;
-                                    // Find the selected driver and populate fields
-                                    if (value != null) {
-                                      final selectedDriver = _drivers.firstWhere(
-                                        (driver) => driver.uid == value,
-                                        orElse: () => UserModel(
-                                          uid: '',
-                                          name: '',
-                                          role: '',
-                                          nic: '',
-                                          address: '',
-                                          contactNumber: '',
-                                          email: '',
-                                        ),
-                                      );
-                                      
-                                      // Populate driver details
-                                      _driverNameController.text = selectedDriver.name;
-                                      _driverContactController.text = selectedDriver.contactNumber;
-                                      
-                                      // Use the driver's ID as the truck ID
-                                      _truckIdController.text = 'TRUCK-${selectedDriver.uid.substring(0, 6)}';
-                                    } else {
-                                      _driverNameController.text = '';
-                                      _driverContactController.text = '';
-                                      _truckIdController.text = '';
-                                    }
-                                  });
-                                },
-                                items: _drivers.map((driver) {
-                                  return DropdownMenuItem<String>(
-                                    value: driver.uid,
-                                    child: Text(driver.name),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        
-                        if (_selectedDriverId != null) ...[
-                          SizedBox(height: 24),
-                          _buildDriverDetailsCard(),
-                        ],
+
+                      if (_selectedDriverId != null) ...[
+                        SizedBox(height: 24),
+                        _buildDriverDetailsCard(),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-          
+              ),
+
           SizedBox(height: 32),
-          
+
           // Summary card
-          if (_startPoint != null && _endPoint != null && _nameController.text.isNotEmpty)
+          if (_startPoint != null &&
+              _endPoint != null &&
+              _nameController.text.isNotEmpty)
             Card(
-              
               color: primaryColor.withOpacity(0.1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1470,21 +1577,39 @@ Widget build(BuildContext context) {
                     ),
                     Divider(color: primaryColor.withOpacity(0.3)),
                     SizedBox(height: 8),
-                    
+
                     _buildSummaryItem('Route Name', _nameController.text),
-                    _buildSummaryItem('Collection', _scheduleFrequency.toUpperCase()),
-                    if (_scheduleFrequency != 'once' && _selectedDays.isNotEmpty)
+                    _buildSummaryItem(
+                      'Collection',
+                      _scheduleFrequency.toUpperCase(),
+                    ),
+                    if (_scheduleFrequency != 'once' &&
+                        _selectedDays.isNotEmpty)
                       _buildSummaryItem(
                         'Days',
                         _selectedDays
-                            .map((day) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day])
+                            .map(
+                              (day) =>
+                                  [
+                                    'Sun',
+                                    'Mon',
+                                    'Tue',
+                                    'Wed',
+                                    'Thu',
+                                    'Fri',
+                                    'Sat',
+                                  ][day],
+                            )
                             .join(', '),
                       ),
                     _buildSummaryItem(
                       'Time Window',
                       '${_getFormattedTime(_scheduleStartTime)} - ${_getFormattedTime(_scheduleEndTime)}',
                     ),
-                    _buildSummaryItem('Waste Type', _wasteCategory.toUpperCase()),
+                    _buildSummaryItem(
+                      'Waste Type',
+                      _wasteCategory.toUpperCase(),
+                    ),
                     if (_selectedDriverId != null)
                       _buildSummaryItem('Driver', _driverNameController.text),
                   ],
@@ -1516,7 +1641,7 @@ Widget build(BuildContext context) {
             ),
           ),
           SizedBox(height: 12),
-          
+
           Row(
             children: [
               CircleAvatar(
@@ -1538,9 +1663,7 @@ Widget build(BuildContext context) {
                     if (_driverContactController.text.isNotEmpty)
                       Text(
                         _driverContactController.text,
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(color: Colors.grey[700]),
                       ),
                   ],
                 ),
@@ -1550,17 +1673,12 @@ Widget build(BuildContext context) {
           SizedBox(height: 12),
           Divider(),
           SizedBox(height: 8),
-          
+
           Row(
             children: [
               Icon(Icons.local_shipping, color: primaryColor, size: 18),
               SizedBox(width: 8),
-              Text(
-                'Truck ID:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('Truck ID:', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(width: 8),
               Text(_truckIdController.text),
             ],
@@ -1587,12 +1705,7 @@ Widget build(BuildContext context) {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -1614,10 +1727,7 @@ Widget build(BuildContext context) {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
           ),
           SizedBox(height: 4),
           Text(
@@ -1675,6 +1785,36 @@ Widget build(BuildContext context) {
       ),
       maxLines: maxLines,
       validator: validator,
+    );
+  }
+
+  Widget _buildFrequencyOption(String value, String label, IconData icon) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _scheduleFrequency = value;
+        });
+      },
+      child: Row(
+        children: [
+          Radio<String>(
+            value: value,
+            groupValue: _scheduleFrequency,
+            onChanged: (newValue) {
+              setState(() {
+                _scheduleFrequency = newValue!;
+              });
+            },
+            activeColor: primaryColor,
+          ),
+          Icon(icon, color: primaryColor),
+          SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
     );
   }
 }

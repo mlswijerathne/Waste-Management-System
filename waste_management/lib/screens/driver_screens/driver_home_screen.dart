@@ -40,10 +40,14 @@ class _DriverHomeState extends State<DriverHome> {
       setState(() => _isLoading = true);
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
         if (doc.exists) {
           setState(() {
-            _profilePhotoUrl = doc.data()?['profileImage']; 
+            _profilePhotoUrl = doc.data()?['profileImage'];
             _driverName = doc.data()?['name'];
             _isLoading = false;
           });
@@ -59,7 +63,7 @@ class _DriverHomeState extends State<DriverHome> {
     setState(() {
       _currentIndex = index;
     });
-    
+
     // Refresh data when returning to home tab
     if (index == 0) {
       _fetchDriverProfileData();
@@ -79,15 +83,14 @@ class _DriverHomeState extends State<DriverHome> {
               },
               child: CircleAvatar(
                 backgroundColor: Colors.white,
-                backgroundImage: _profilePhotoUrl != null
-                  ? MemoryImage(base64Decode(_profilePhotoUrl!))
-                  : null,
-                child: _profilePhotoUrl == null
-                  ? const Icon(
-                    Icons.person,
-                    color: Color(0xFF59A867),
-                  )
-                  : null,
+                backgroundImage:
+                    _profilePhotoUrl != null
+                        ? MemoryImage(base64Decode(_profilePhotoUrl!))
+                        : null,
+                child:
+                    _profilePhotoUrl == null
+                        ? const Icon(Icons.person, color: Color(0xFF59A867))
+                        : null,
               ),
             ),
             const SizedBox(width: 12),
@@ -96,10 +99,7 @@ class _DriverHomeState extends State<DriverHome> {
               children: [
                 Text(
                   'Good ${_getDayWish()}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
                 Text(
                   '${_driverName ?? 'Driver'}',
@@ -168,76 +168,92 @@ class _DriverHomeState extends State<DriverHome> {
                   ),
                 ],
               ),
-              child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF59A867),
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF59A867).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(
-                            Icons.directions_bus,
-                            color: Color(0xFF59A867),
-                            size: 32,
-                          ),
+              child:
+                  _isLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF59A867),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min, // Prevent overflow
-                            children: [
-                              const Text(
-                                'Current Status',
-                                style: TextStyle(
-                                  fontSize: 15, // Slightly reduced font size
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF59A867),
-                                ),
+                      )
+                      : Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF59A867).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(15),
                               ),
-                              const SizedBox(height: 4), // Reduced spacing
-                              Text(
-                                'No active route selected',
-                                style: TextStyle(
-                                  fontSize: 13, // Reduced font size
-                                  color: Colors.grey[600],
-                                ),
+                              child: const Icon(
+                                Icons.directions_bus,
+                                color: Color(0xFF59A867),
+                                size: 32,
                               ),
-                              const SizedBox(height: 6), // Reduced spacing
-                              SizedBox(
-                                height: 28, // Fixed height for button
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.pushNamed(context, '/driver_route_list');
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF59A867),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), // Reduced padding
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize:
+                                    MainAxisSize.min, // Prevent overflow
+                                children: [
+                                  const Text(
+                                    'Current Status',
+                                    style: TextStyle(
+                                      fontSize:
+                                          15, // Slightly reduced font size
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF59A867),
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Start Route',
-                                    style: TextStyle(color: Colors.white, fontSize: 12), // Reduced font size
+                                  const SizedBox(height: 4), // Reduced spacing
+                                  Text(
+                                    'No active route selected',
+                                    style: TextStyle(
+                                      fontSize: 13, // Reduced font size
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(height: 6), // Reduced spacing
+                                  SizedBox(
+                                    height: 28, // Fixed height for button
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/driver_route_list',
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF59A867,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 0,
+                                        ), // Reduced padding
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Start Route',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ), // Reduced font size
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
             ),
 
             // Quick Actions
@@ -254,18 +270,6 @@ class _DriverHomeState extends State<DriverHome> {
                       color: Colors.grey[800],
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to see all actions
-                    },
-                    child: const Text(
-                      'See All',
-                      style: TextStyle(
-                        color: Color(0xFF59A867),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -277,34 +281,46 @@ class _DriverHomeState extends State<DriverHome> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
-                childAspectRatio: 1.3, // Increased aspect ratio to provide more height
+                childAspectRatio:
+                    0.95,
                 children: [
                   _ActionCard(
                     icon: Icons.map,
                     title: 'Select Route',
                     description: 'Select your route for the day',
-                    onTap: () => Navigator.pushNamed(context, '/driver_route_list'),
+                    onTap:
+                        () =>
+                            Navigator.pushNamed(context, '/driver_route_list'),
                     color: const Color(0xFF59A867),
                   ),
                   _ActionCard(
                     icon: Icons.info,
                     title: 'Cleanliness Issues',
                     description: 'Cleanliness issues in your area',
-                    onTap: () => Navigator.pushNamed(context, '/driver_cleanliness_issue_list'),
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/driver_cleanliness_issue_list',
+                        ),
                     color: Colors.orange[700]!,
                   ),
                   _ActionCard(
                     icon: Icons.folder_special,
                     title: 'Special Requests',
                     description: 'View special requests from citizens',
-                    onTap: () => Navigator.pushNamed(context, '/driver_special_garbage_screen'),
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/driver_special_garbage_screen',
+                        ),
                     color: Colors.blue[600]!,
                   ),
                   _ActionCard(
                     icon: Icons.build,
                     title: 'Report Breakdown',
                     description: 'Report vehicle breakdowns',
-                    onTap: () => Navigator.pushNamed(context, '/breakdown_screen'),
+                    onTap:
+                        () => Navigator.pushNamed(context, '/breakdown_screen'),
                     color: Colors.purple[700]!,
                   ),
                 ],
@@ -323,7 +339,7 @@ class _DriverHomeState extends State<DriverHome> {
                 ),
               ),
             ),
-            
+
             // Scrollable tips cards
             SizedBox(
               height: 180,
@@ -334,19 +350,22 @@ class _DriverHomeState extends State<DriverHome> {
                   _TipCard(
                     icon: Icons.schedule,
                     title: 'Efficient Routing',
-                    description: 'Plan your collection route to minimize fuel usage and save time.',
+                    description:
+                        'Plan your collection route to minimize fuel usage and save time.',
                     color: const Color(0xFF59A867),
                   ),
                   _TipCard(
                     icon: Icons.local_gas_station,
                     title: 'Fuel Conservation',
-                    description: 'Avoid idling the vehicle for long periods to save fuel and reduce emissions.',
+                    description:
+                        'Avoid idling the vehicle for long periods to save fuel and reduce emissions.',
                     color: Colors.blue[600]!,
                   ),
                   _TipCard(
                     icon: Icons.health_and_safety,
                     title: 'Safety First',
-                    description: 'Always wear proper safety equipment when handling waste materials.',
+                    description:
+                        'Always wear proper safety equipment when handling waste materials.',
                     color: Colors.amber[800]!,
                   ),
                 ],
@@ -400,7 +419,7 @@ class _ActionCard extends StatelessWidget {
           ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start, // Align content to start
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
@@ -409,31 +428,29 @@ class _ActionCard extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: color,
-              ),
+              child: Icon(icon, size: 24, color: color),
             ),
-            const SizedBox(height: 8), // Reduced spacing
+            const SizedBox(height: 12), // Increased spacing
             Text(
               title,
               style: TextStyle(
-                fontSize: 15, // Slightly reduced font size
+                fontSize: 16, // Slightly increased font size
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[800],
               ),
             ),
-            const SizedBox(height: 2), // Reduced spacing
-            Flexible(  // Added Flexible to prevent overflow
+            const SizedBox(
+              height: 6,
+            ), // More space between title and description
+            Expanded(
+              // Using Expanded instead of Flexible for better space utilization
               child: Text(
                 description,
                 style: TextStyle(
-                  fontSize: 11, // Reduced font size
+                  fontSize: 13, // Increased font size for better readability
                   color: Colors.grey[600],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                // Removed maxLines and overflow to allow text to use available space
               ),
             ),
           ],
@@ -500,13 +517,11 @@ class _TipCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6), // Reduced spacing
-                Flexible( // Added Flexible to prevent overflow
+                Flexible(
+                  // Added Flexible to prevent overflow
                   child: Text(
                     description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                   ),
