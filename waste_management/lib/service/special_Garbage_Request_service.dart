@@ -93,8 +93,7 @@ class SpecialGarbageRequestService {
       QuerySnapshot snapshot = await _firestore
           .collection(_collection)
           .where('assignedDriverId', isEqualTo: driverId)
-          .where('status', whereIn: ['assigned'])
-          .orderBy('assignedTime', descending: true)
+          .where('status', whereIn: ['assigned', 'collected', 'completed'])
           .get();
       
       return snapshot.docs.map((doc) {
