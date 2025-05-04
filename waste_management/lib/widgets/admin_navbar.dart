@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class AdminNavbar extends StatelessWidget {
+class  AdminNavbar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 

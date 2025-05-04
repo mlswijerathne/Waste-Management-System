@@ -37,52 +37,42 @@ class DriversNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              if (index == 0) {
-                // If home is tapped, just update the index
-                onTap(index);
-              } else if (index == 1) {
-                // Don't update index, directly navigate to route list
-                Navigator.pushNamed(context, '/driver_route_list');
-              } else if (index == 2) {
-                // Navigate to notifications
-                Navigator.pushNamed(context, '/driver_notifications');
-              } else if (index == 3) {
-                // Navigate to assignments
-                Navigator.pushNamed(context, '/driver_assignment_screen');
+              // Update the current index through the callback
+              onTap(index);
+              
+              // Navigate to the appropriate screen based on the index
+              switch (index) {
+                case 0:
+                  Navigator.pushReplacementNamed(context, '/driver_home');
+                  break;
+                case 1:
+                  Navigator.pushReplacementNamed(context, '/driver_route_list');
+                  break;
+                case 2:
+                  Navigator.pushReplacementNamed(context, '/driver_special_garbage_screen');
+                  break;
+                case 3:
+                  Navigator.pushReplacementNamed(context, '/driver_assignment_screen');
+                  break;
               }
             },
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white,
+            unselectedItemColor: Colors.white.withOpacity(0.7),
             showUnselectedLabels: true,
             showSelectedLabels: true,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
             elevation: 0,
             items: [
               _buildBottomNavigationBarItem(
-                Icons.home_outlined,
-                Icons.home,
-                'Home',
-                currentIndex == 0,
-              ),
+                  Icons.home_outlined, Icons.home, 'Home', currentIndex == 0),
               _buildBottomNavigationBarItem(
-                Icons.alt_route_outlined,
-                Icons.alt_route,
-                'Tracker',
-                currentIndex == 1,
-              ),
+                  Icons.directions_outlined, Icons.directions, 'Routes', currentIndex == 1),
               _buildBottomNavigationBarItem(
-                Icons.notifications_outlined,
-                Icons.notifications,
-                'Notifications',
-                currentIndex == 2,
-              ),
+                  Icons.delete_outline, Icons.delete, 'Requests', currentIndex == 2),
               _buildBottomNavigationBarItem(
-                Icons.assignment_outlined,
-                Icons.assignment,
-                'Assignments',
-                currentIndex == 3,
-              ),
+                  Icons.assignment_outlined, Icons.assignment, 'Tasks', currentIndex == 3),
             ],
           ),
         ),
@@ -91,11 +81,7 @@ class DriversNavbar extends StatelessWidget {
   }
 
   BottomNavigationBarItem _buildBottomNavigationBarItem(
-    IconData icon,
-    IconData activeIcon,
-    String label,
-    bool isSelected,
-  ) {
+      IconData icon, IconData activeIcon, String label, bool isSelected) {
     return BottomNavigationBarItem(
       icon: Transform.scale(
         scale: isSelected ? 1.3 : 1.0,

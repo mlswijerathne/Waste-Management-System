@@ -3,25 +3,38 @@ import 'package:intl/intl.dart';
 import 'package:waste_management/models/cleanlinessIssueModel.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 import 'package:waste_management/service/auth_service.dart';
+import 'package:waste_management/widgets/resident_navbar.dart';
 
-class ResidentNotificationScreen extends StatefulWidget {
-  const ResidentNotificationScreen({Key? key}) : super(key: key);
+class ResidentCleanlinessIssueFeedbackScreen extends StatefulWidget {
+  final CleanlinessIssueModel? selectedIssue;
+
+  const ResidentCleanlinessIssueFeedbackScreen({Key? key, this.selectedIssue})
+    : super(key: key);
 
   @override
-  State<ResidentNotificationScreen> createState() => _ResidentNotificationScreenState();
+  State<ResidentCleanlinessIssueFeedbackScreen> createState() =>
+      _ResidentCleanlinessIssueFeedbackScreenState();
 }
 
-class _ResidentNotificationScreenState extends State<ResidentNotificationScreen> {
+class _ResidentCleanlinessIssueFeedbackScreenState
+    extends State<ResidentCleanlinessIssueFeedbackScreen> {
   final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();
   final AuthService _authService = AuthService();
   List<CleanlinessIssueModel> _resolvedIssues = [];
   bool _isLoading = true;
   String _residentId = '';
   final Color primaryColor = const Color(0xFF59A867);
+  int _currentIndex = 2; // Set to 2 since this is the "Notification" tab
 
   @override
   void initState() {
     super.initState();
+    // If a specific issue was selected, show its details immediately
+    if (widget.selectedIssue != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showIssueDetailsAndConfirmation(widget.selectedIssue!);
+      });
+    }
     _getCurrentResidentId();
   }
 
@@ -34,35 +47,43 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
         });
         _loadResolvedIssues();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not authenticated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User not authenticated')));
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       print('Error getting current user: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load user data')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load user data')));
     }
   }
 
   Future<void> _loadResolvedIssues() async {
     if (_residentId.isEmpty) return;
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // Get all issues reported by this resident
-      final allIssues = await _cleanlinessService.getResidentIssues(_residentId);
-      
+      final allIssues = await _cleanlinessService.getResidentIssues(
+        _residentId,
+      );
+
       // Filter for only resolved issues
-      final resolved = allIssues.where((issue) => 
-        issue.status == 'resolved' && (issue.residentConfirmed == null || issue.residentConfirmed == false)
-      ).toList();
-      
+      final resolved =
+          allIssues
+              .where(
+                (issue) =>
+                    issue.status == 'resolved' &&
+                    (issue.residentConfirmed == null ||
+                        issue.residentConfirmed == false),
+              )
+              .toList();
+
       setState(() {
         _resolvedIssues = resolved;
         _isLoading = false;
@@ -89,7 +110,7 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
   String _getTimeElapsed(DateTime resolvedTime) {
     final now = DateTime.now();
     final difference = now.difference(resolvedTime);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
     } else if (difference.inHours > 0) {
@@ -101,6 +122,13 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
     }
   }
 
+  // Handle navigation bar taps
+  void _onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,13 +136,12 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
       appBar: AppBar(
         title: const Text(
           'Notifications',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        automaticallyImplyLeading: false, // Remove back button
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: primaryColor),
@@ -122,22 +149,27 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: primaryColor))
-          : _resolvedIssues.isEmpty
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: primaryColor))
+              : _resolvedIssues.isEmpty
               ? _buildEmptyState()
               : RefreshIndicator(
-                  onRefresh: _loadResolvedIssues,
-                  color: primaryColor,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12.0),
-                    itemCount: _resolvedIssues.length,
-                    itemBuilder: (context, index) {
-                      final issue = _resolvedIssues[index];
-                      return _buildNotificationCard(issue);
-                    },
-                  ),
+                onRefresh: _loadResolvedIssues,
+                color: primaryColor,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12.0),
+                  itemCount: _resolvedIssues.length,
+                  itemBuilder: (context, index) {
+                    final issue = _resolvedIssues[index];
+                    return _buildNotificationCard(issue);
+                  },
                 ),
+              ),
+      bottomNavigationBar: ResidentNavbar(
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+      ),
     );
   }
 
@@ -146,11 +178,7 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.notifications_none,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.notifications_none, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No Notifications',
@@ -166,9 +194,7 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
             child: Text(
               'When your reported issues are resolved, you will receive notifications here',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ),
           const SizedBox(height: 24),
@@ -189,13 +215,11 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
 
   Widget _buildNotificationCard(CleanlinessIssueModel issue) {
     final resolvedTime = issue.resolvedTime ?? DateTime.now();
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12.0),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () => _showIssueDetailsAndConfirmation(issue),
         borderRadius: BorderRadius.circular(12.0),
@@ -280,7 +304,10 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
                     label: const Text('Confirm & Review'),
                     style: TextButton.styleFrom(
                       foregroundColor: primaryColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                     ),
                   ),
                 ],
@@ -294,153 +321,156 @@ class _ResidentNotificationScreenState extends State<ResidentNotificationScreen>
 
   void _showIssueDetailsAndConfirmation(CleanlinessIssueModel issue) {
     final TextEditingController _feedbackController = TextEditingController();
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Confirm Resolution',
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Confirm Resolution',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Issue Details',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: primaryColor,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  const SizedBox(height: 8),
+                  Text(
+                    issue.description,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Location: ${issue.location}',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Reported: ${_formatDate(issue.reportedTime)}',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  if (issue.resolvedTime != null)
+                    Text(
+                      'Resolved: ${_formatDate(issue.resolvedTime!)}',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Provide Feedback (Optional)',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _feedbackController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'Share your thoughts about the resolution...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey[700],
+                            side: BorderSide(color: Colors.grey[400]!),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            // Submit confirmation and feedback
+                            final success = await _cleanlinessService
+                                .updateResidentFeedback(
+                                  issueId: issue.id,
+                                  confirmed: true,
+                                  feedback: _feedbackController.text.trim(),
+                                );
+
+                            Navigator.pop(context);
+
+                            if (success) {
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Thank you for confirming the resolution!',
+                                  ),
+                                  backgroundColor: Color(0xFF59A867),
+                                ),
+                              );
+                              // Refresh the list
+                              _loadResolvedIssues();
+                            } else {
+                              // Show error message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Failed to submit feedback. Please try again.',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Confirm Resolution'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Issue Details',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                issue.description,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Location: ${issue.location}',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Reported: ${_formatDate(issue.reportedTime)}',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 4),
-              if (issue.resolvedTime != null)
-                Text(
-                  'Resolved: ${_formatDate(issue.resolvedTime!)}',
-                  style: TextStyle(fontSize: 14),
-                ),
-              const SizedBox(height: 20),
-              const Text(
-                'Provide Feedback (Optional)',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _feedbackController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Share your thoughts about the resolution...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey[700],
-                        side: BorderSide(color: Colors.grey[400]!),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        // Submit confirmation and feedback
-                        final success = await _cleanlinessService.updateResidentFeedback(
-                          issueId: issue.id,
-                          confirmed: true,
-                          feedback: _feedbackController.text.trim(),
-                        );
-                        
-                        Navigator.pop(context);
-                        
-                        if (success) {
-                          // Show success message
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Thank you for confirming the resolution!'),
-                              backgroundColor: Color(0xFF59A867),
-                            ),
-                          );
-                          // Refresh the list
-                          _loadResolvedIssues();
-                        } else {
-                          // Show error message
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to submit feedback. Please try again.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Confirm Resolution'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 }

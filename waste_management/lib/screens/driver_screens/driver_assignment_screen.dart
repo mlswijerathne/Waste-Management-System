@@ -6,6 +6,7 @@ import 'package:waste_management/screens/driver_screens/driver_special_garbage_d
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
+import 'package:waste_management/widgets/driver_navbar.dart'; // Import the DriversNavbar
 
 class DriverAssignmentScreen extends StatefulWidget {
   const DriverAssignmentScreen({Key? key}) : super(key: key);
@@ -14,19 +15,22 @@ class DriverAssignmentScreen extends StatefulWidget {
   State<DriverAssignmentScreen> createState() => _DriverAssignmentScreenState();
 }
 
-class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with SingleTickerProviderStateMixin {
+class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
+    with SingleTickerProviderStateMixin {
   final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();
-  final SpecialGarbageRequestService _specialGarbageService = SpecialGarbageRequestService();
+  final SpecialGarbageRequestService _specialGarbageService =
+      SpecialGarbageRequestService();
   final AuthService _authService = AuthService();
-  
+
   late TabController _tabController;
-  
+
   List<CleanlinessIssueModel> _assignedIssues = [];
   List<SpecialGarbageRequestModel> _assignedSpecialRequests = [];
-  
+
   bool _isLoading = true;
   String _driverId = '';
   final Color primaryColor = const Color(0xFF59A867);
+  int _currentIndex = 3; // Set current index to 3 for Assignment screen
 
   @override
   void initState() {
@@ -50,16 +54,16 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
         });
         _loadAllAssignments();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not authenticated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User not authenticated')));
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       print('Error getting current user: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load user data')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load user data')));
     }
   }
 
@@ -67,13 +71,10 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
     setState(() {
       _isLoading = true;
     });
-    
+
     // Load both types of assignments in parallel
-    await Future.wait([
-      _loadCleanlinessIssues(),
-      _loadSpecialRequests(),
-    ]);
-    
+    await Future.wait([_loadCleanlinessIssues(), _loadSpecialRequests()]);
+
     setState(() {
       _isLoading = false;
     });
@@ -81,9 +82,11 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
 
   Future<void> _loadCleanlinessIssues() async {
     if (_driverId.isEmpty) return;
-    
+
     try {
-      final issues = await _cleanlinessService.getDriverAssignedIssues(_driverId);
+      final issues = await _cleanlinessService.getDriverAssignedIssues(
+        _driverId,
+      );
       setState(() {
         _assignedIssues = issues;
       });
@@ -97,16 +100,20 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
 
   Future<void> _loadSpecialRequests() async {
     if (_driverId.isEmpty) return;
-    
+
     try {
-      final requests = await _specialGarbageService.getDriverAssignedRequests(_driverId);
+      final requests = await _specialGarbageService.getDriverAssignedRequests(
+        _driverId,
+      );
       setState(() {
         _assignedSpecialRequests = requests;
       });
     } catch (e) {
       print('Error loading special requests: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load special garbage requests')),
+        const SnackBar(
+          content: Text('Failed to load special garbage requests'),
+        ),
       );
     }
   }
@@ -119,6 +126,16 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
     return DateFormat('d MMM yyyy').format(dateTime);
   }
 
+  // Add onTabTapped method to handle navigation
+  void _onTabTapped(int index) {
+    if (index == _currentIndex)
+      return; // Don't navigate if we're already on this tab
+
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,9 +143,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
       appBar: AppBar(
         title: const Text(
           'My Assignments',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -149,39 +164,41 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
               icon: Icon(Icons.cleaning_services),
               text: 'Cleanliness Issues',
             ),
-            Tab(
-              icon: Icon(Icons.recycling),
-              text: 'Special Requests',
-            ),
+            Tab(icon: Icon(Icons.recycling), text: 'Special Requests'),
           ],
         ),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: primaryColor))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // Cleanliness Issues Tab
-                _assignedIssues.isEmpty
-                    ? _buildEmptyState(
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: primaryColor))
+              : TabBarView(
+                controller: _tabController,
+                children: [
+                  // Cleanliness Issues Tab
+                  _assignedIssues.isEmpty
+                      ? _buildEmptyState(
                         'No Cleanliness Issues',
                         'When you are assigned to cleanliness issues, they will appear here',
                         Icons.cleaning_services_outlined,
                         _loadCleanlinessIssues,
                       )
-                    : _buildCleanlinessIssuesList(),
+                      : _buildCleanlinessIssuesList(),
 
-                // Special Requests Tab
-                _assignedSpecialRequests.isEmpty
-                    ? _buildEmptyState(
+                  // Special Requests Tab
+                  _assignedSpecialRequests.isEmpty
+                      ? _buildEmptyState(
                         'No Special Requests',
                         'You have no special garbage requests assigned to you',
                         Icons.recycling_outlined,
                         _loadSpecialRequests,
                       )
-                    : _buildSpecialRequestsList(),
-              ],
-            ),
+                      : _buildSpecialRequestsList(),
+                ],
+              ),
+      bottomNavigationBar: DriversNavbar(
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+      ), // Add the navbar
     );
   }
 
@@ -195,11 +212,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(icon, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             title,
@@ -215,9 +228,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
             child: Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ),
           const SizedBox(height: 24),
@@ -270,9 +281,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
     return Card(
       margin: const EdgeInsets.only(bottom: 12.0),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () => _navigateToIssueDetails(issue),
         borderRadius: BorderRadius.circular(12.0),
@@ -332,17 +341,11 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                   children: [
                     Text(
                       'Reported by: ${issue.residentName}',
-                      style: TextStyle(
-                        fontSize: 13.0,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13.0, color: Colors.grey[600]),
                     ),
                     Text(
                       _formatDate(issue.reportedTime),
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 12.0, color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -351,8 +354,12 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildActionButton(
-                      issue.status == 'assigned' ? 'Start Work' : 'View Details',
-                      issue.status == 'assigned' ? Icons.play_arrow : Icons.visibility,
+                      issue.status == 'assigned'
+                          ? 'Start Work'
+                          : 'View Details',
+                      issue.status == 'assigned'
+                          ? Icons.play_arrow
+                          : Icons.visibility,
                       issue.status == 'assigned' ? Colors.blue : primaryColor,
                       () => _navigateToIssueDetails(issue),
                     ),
@@ -364,7 +371,9 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                         () {
                           // Launch maps app
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Opening navigation...')),
+                            const SnackBar(
+                              content: Text('Opening navigation...'),
+                            ),
                           );
                         },
                       ),
@@ -382,27 +391,22 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
     return Card(
       margin: const EdgeInsets.only(bottom: 12.0),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DriverSpecialGarbageDetailScreen(requestId: request.id),
+              builder:
+                  (context) =>
+                      DriverSpecialGarbageDetailScreen(requestId: request.id),
             ),
           ).then((_) => _loadSpecialRequests());
         },
         borderRadius: BorderRadius.circular(12.0),
         child: Container(
           decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: Colors.blue,
-                width: 6.0,
-              ),
-            ),
+            border: Border(left: BorderSide(color: Colors.blue, width: 6.0)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
@@ -415,7 +419,11 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                     Expanded(
                       child: Row(
                         children: [
-                          const Icon(Icons.delete_outline, size: 20, color: Colors.blue),
+                          const Icon(
+                            Icons.delete_outline,
+                            size: 20,
+                            color: Colors.blue,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -432,7 +440,10 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 4.0,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12.0),
@@ -472,10 +483,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                   children: [
                     Text(
                       'Resident: ${request.residentName}',
-                      style: TextStyle(
-                        fontSize: 13.0,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13.0, color: Colors.grey[600]),
                     ),
                     if (request.estimatedWeight != null)
                       Text(
@@ -493,17 +501,11 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                   children: [
                     Text(
                       'Assigned: ${_formatDate(request.assignedTime!)}',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 12.0, color: Colors.grey[500]),
                     ),
                     Text(
                       'ID: #${request.id.substring(0, 8)}',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 12.0, color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -519,7 +521,10 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => DriverSpecialGarbageDetailScreen(requestId: request.id),
+                            builder:
+                                (context) => DriverSpecialGarbageDetailScreen(
+                                  requestId: request.id,
+                                ),
                           ),
                         ).then((_) => _loadSpecialRequests());
                       },
@@ -531,7 +536,9 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                       () {
                         // Launch maps app
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Opening navigation...')),
+                          const SnackBar(
+                            content: Text('Opening navigation...'),
+                          ),
                         );
                       },
                     ),
@@ -560,22 +567,20 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         minimumSize: const Size(40, 32),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 
   Widget _buildStatusChip(String status) {
     String displayStatus = status;
-    
+
     if (status == 'inProgress') {
       displayStatus = 'IN PROGRESS';
     } else {
       displayStatus = status.toUpperCase();
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
@@ -632,10 +637,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
             children: [
               Text(
                 'Issue Details',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               IconButton(
                 icon: Icon(Icons.close),
@@ -646,16 +648,10 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
           const SizedBox(height: 10),
           Text(
             issue.description,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          Text(
-            'Location: ${issue.location}',
-            style: TextStyle(fontSize: 14),
-          ),
+          Text('Location: ${issue.location}', style: TextStyle(fontSize: 14)),
           Text(
             'Reported by: ${issue.residentName}',
             style: TextStyle(fontSize: 14),
@@ -711,7 +707,9 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
                       Navigator.pop(context);
                       // Launch maps with the location coordinates
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Opening location in maps...')),
+                        const SnackBar(
+                          content: Text('Opening location in maps...'),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.location_on),
@@ -730,24 +728,30 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen> with Si
     );
   }
 
-  Future<void> _updateIssueStatus(CleanlinessIssueModel issue, String newStatus) async {
+  Future<void> _updateIssueStatus(
+    CleanlinessIssueModel issue,
+    String newStatus,
+  ) async {
     Navigator.pop(context); // Close the bottom sheet
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final success = await _cleanlinessService.updateIssueStatus(
         issueId: issue.id,
         newStatus: newStatus,
       );
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Issue ${newStatus == 'inProgress' ? 'marked as in progress' : 'resolved'} successfully'),
-            backgroundColor: newStatus == 'inProgress' ? Colors.blue : Colors.green,
+            content: Text(
+              'Issue ${newStatus == 'inProgress' ? 'marked as in progress' : 'resolved'} successfully',
+            ),
+            backgroundColor:
+                newStatus == 'inProgress' ? Colors.blue : Colors.green,
           ),
         );
         // Refresh the issues list

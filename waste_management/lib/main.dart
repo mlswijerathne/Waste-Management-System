@@ -24,7 +24,7 @@ import 'package:waste_management/screens/resident_screens/resident_Location_pick
 import 'package:waste_management/screens/resident_screens/resident_active_route_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_detail_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_home_screen.dart';
-import 'package:waste_management/screens/resident_screens/resident_notification_screen.dart';
+import 'package:waste_management/screens/resident_screens/resident_cleanliness%20issue_feedback_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_profile_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_recent_cleanliness_report_screen.dart';
 import 'package:waste_management/screens/resident_screens/resident_report_cleanliness_issue_screen.dart';
@@ -88,10 +88,6 @@ class MyApp extends StatelessWidget {
         '/resident_location_picker_screen': (context) => ProtectedRoute(
           allowedRoles: ['resident'],
           child: ResidentLocationPickerScreen(),
-        ),
-        '/resident_notification_screen': (context) => ProtectedRoute(
-          allowedRoles: ['resident'],
-          child: ResidentNotificationScreen(),
         ),
         '/resident_special_garbage_request_screen': (context) => ProtectedRoute(
           allowedRoles: ['resident'],

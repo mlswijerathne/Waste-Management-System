@@ -4,6 +4,7 @@ import 'package:waste_management/models/routeModel.dart';
 import 'package:waste_management/screens/driver_screens/driver_route_action_screen.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/route_service.dart';
+import 'package:waste_management/widgets/driver_navbar.dart'; // Import the navbar
 
 class DriverRouteListScreen extends StatefulWidget {
   const DriverRouteListScreen({Key? key}) : super(key: key);
@@ -21,7 +22,8 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
   List<RouteModel> _todayRoutes = [];
   DateTime _selectedDate = DateTime.now();
   int _currentDayIndex = DateTime.now().weekday % 7; // 0=Sun, 1=Mon,...6=Sat
-  
+  int _currentIndex = 1; // Set current index to 1 for Route List screen
+
   // Define primary color
   final Color primaryColor = const Color(0xFF59A867);
 
@@ -36,7 +38,9 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
       final currentUser = await _authService.getCurrentUser();
       if (currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication error. Please login again.')),
+          const SnackBar(
+            content: Text('Authentication error. Please login again.'),
+          ),
         );
         return;
       }
@@ -47,7 +51,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
 
       await _checkActiveRoute();
       await _loadTodayRoutes();
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -55,18 +59,20 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading driver data: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading driver data: $e')));
     }
   }
 
   Future<void> _loadTodayRoutes() async {
     if (_driverId == null) return;
-    
+
     try {
       // Get weekly schedule and extract just today's routes
-      final weeklySchedule = await _routeService.getDriverWeeklySchedule(_driverId!);
+      final weeklySchedule = await _routeService.getDriverWeeklySchedule(
+        _driverId!,
+      );
       setState(() {
         _todayRoutes = weeklySchedule[_currentDayIndex] ?? [];
       });
@@ -77,7 +83,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
 
   Future<void> _checkActiveRoute() async {
     if (_driverId == null) return;
-    
+
     try {
       final activeRoute = await _routeService.getDriverActiveRoute(_driverId!);
       setState(() {
@@ -89,7 +95,15 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
   }
 
   String _getDayName(int index) {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const days = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
     return days[index];
   }
 
@@ -97,7 +111,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
     final route = _activeRoute!;
     String status = "Active";
     Color statusColor = primaryColor;
-    
+
     if (route.isPaused) {
       status = "Paused";
       statusColor = Colors.orange;
@@ -108,7 +122,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
       status = "Cancelled";
       statusColor = Colors.red;
     }
-    
+
     return Card(
       elevation: 4.0,
       margin: const EdgeInsets.all(12.0),
@@ -133,12 +147,15 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      route.isActive ? Icons.directions_car : 
-                      route.isPaused ? Icons.pause :
-                      route.completedAt != null ? Icons.check_circle :
-                      Icons.cancel,
+                      route.isActive
+                          ? Icons.directions_car
+                          : route.isPaused
+                          ? Icons.pause
+                          : route.completedAt != null
+                          ? Icons.check_circle
+                          : Icons.cancel,
                       size: 24,
-                      color: statusColor
+                      color: statusColor,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -167,7 +184,10 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12.0,
+                      vertical: 6.0,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(20.0),
@@ -184,35 +204,59 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                 ],
               ),
               const SizedBox(height: 16.0),
-              
+
               // Waste category badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: (route.wasteCategory == 'organic' ? Colors.brown : Colors.blue).withOpacity(0.1),
+                  color: (route.wasteCategory == 'organic'
+                          ? Colors.brown
+                          : Colors.blue)
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: route.wasteCategory == 'organic' ? Colors.brown : Colors.blue),
+                  border: Border.all(
+                    color:
+                        route.wasteCategory == 'organic'
+                            ? Colors.brown
+                            : Colors.blue,
+                  ),
                 ),
                 child: Text(
-                  route.wasteCategory == 'organic' ? 'ORGANIC WASTE' : 'INORGANIC WASTE',
+                  route.wasteCategory == 'organic'
+                      ? 'ORGANIC WASTE'
+                      : 'INORGANIC WASTE',
                   style: TextStyle(
-                    color: route.wasteCategory == 'organic' ? Colors.brown : Colors.blue,
+                    color:
+                        route.wasteCategory == 'organic'
+                            ? Colors.brown
+                            : Colors.blue,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16.0),
-              
+
               // Route details with improved readability
-              _buildInfoRow(Icons.route, 'Total Distance', '${route.distance.toStringAsFixed(1)} km'),
+              _buildInfoRow(
+                Icons.route,
+                'Total Distance',
+                '${route.distance.toStringAsFixed(1)} km',
+              ),
               const SizedBox(height: 8.0),
-              _buildInfoRow(Icons.access_time, 'Started', _formatDateTime(route.startedAt ?? route.createdAt)),
-              
+              _buildInfoRow(
+                Icons.access_time,
+                'Started',
+                _formatDateTime(route.startedAt ?? route.createdAt),
+              ),
+
               if (route.isActive) ...[
                 const SizedBox(height: 16.0),
-                
+
                 // Progress bar for active routes
                 Text(
                   'PROGRESS: ${route.currentProgressPercentage?.toStringAsFixed(1) ?? '0.0'}%',
@@ -227,7 +271,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                   borderRadius: BorderRadius.circular(5),
                 ),
               ],
-              
+
               const SizedBox(height: 20.0),
               ElevatedButton.icon(
                 onPressed: () => _navigateToRouteDetail(route),
@@ -238,7 +282,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                 label: Text(
                   route.isActive ? 'CONTINUE THIS ROUTE' : 'VIEW ROUTE DETAILS',
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold, 
+                    fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: Colors.white,
                   ),
@@ -266,17 +310,11 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
         const SizedBox(width: 8.0),
         Text(
           '$label: ',
-          style: TextStyle(
-            fontSize: 16.0,
-            color: Colors.grey[800],
-          ),
+          style: TextStyle(fontSize: 16.0, color: Colors.grey[800]),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16.0,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -286,7 +324,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
     String status = "Scheduled";
     Color statusColor = Colors.blue;
     IconData statusIcon = Icons.access_time;
-    
+
     if (route.isActive) {
       status = "Active";
       statusColor = primaryColor;
@@ -304,17 +342,17 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
       statusColor = Colors.red;
       statusIcon = Icons.cancel;
     }
-    
+
     // Get waste category color
-    Color categoryColor = route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
-    String categoryText = route.wasteCategory == 'organic' ? 'ORGANIC' : 'INORGANIC';
+    Color categoryColor =
+        route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
+    String categoryText =
+        route.wasteCategory == 'organic' ? 'ORGANIC' : 'INORGANIC';
 
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       child: InkWell(
         onTap: () => _navigateToRouteDetail(route),
         child: Padding(
@@ -344,7 +382,10 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10.0,
+                      vertical: 5.0,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(16.0),
@@ -360,12 +401,15 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 12.0),
-              
+
               // Waste category badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: categoryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -380,9 +424,9 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12.0),
-              
+
               // Route time and distance information
               Row(
                 children: [
@@ -409,9 +453,12 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                   ),
                 ],
               ),
-              
+
               // Show action buttons based on route status
-              if (!route.isActive && !route.isCancelled && route.completedAt == null && _activeRoute == null)
+              if (!route.isActive &&
+                  !route.isCancelled &&
+                  route.completedAt == null &&
+                  _activeRoute == null)
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
                   child: ElevatedButton.icon(
@@ -434,9 +481,11 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                     ),
                   ),
                 ),
-                
+
               // Show restart button if route is completed and can be restarted
-              if (route.completedAt != null && !route.isCancelled && _activeRoute == null)
+              if (route.completedAt != null &&
+                  !route.isCancelled &&
+                  _activeRoute == null)
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
                   child: ElevatedButton.icon(
@@ -488,7 +537,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
       } else {
         await _routeService.startRoute(route.id);
       }
-      
+
       setState(() {
         _activeRoute = route.copyWith(
           isActive: true,
@@ -498,21 +547,23 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
           currentProgressPercentage: 0.0,
         );
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(route.completedAt != null 
-            ? 'Route restarted successfully' 
-            : 'Route started successfully'),
+          content: Text(
+            route.completedAt != null
+                ? 'Route restarted successfully'
+                : 'Route started successfully',
+          ),
           backgroundColor: primaryColor,
         ),
       );
-      
+
       _navigateToRouteDetail(route);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error starting route: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error starting route: $e')));
     }
   }
 
@@ -529,23 +580,27 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
     });
   }
 
+  // Add _onTabTapped method to handle navigation
+  void _onTabTapped(int index) {
+    if (index == _currentIndex)
+      return; // Don't navigate if we're already on this tab
+
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(
-            color: primaryColor,
-          ),
-        ),
+        body: Center(child: CircularProgressIndicator(color: primaryColor)),
       );
     }
 
     if (_driverId == null) {
       return const Scaffold(
-        body: Center(
-          child: Text('Authentication error. Please login again.'),
-        ),
+        body: Center(child: Text('Authentication error. Please login again.')),
       );
     }
 
@@ -560,7 +615,10 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
             const Text('Today\'s Routes', style: TextStyle(fontSize: 20)),
             Text(
               todayName,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
@@ -603,10 +661,14 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                 _buildActiveRouteCard(),
                 const SizedBox(height: 24),
               ],
-              
+
               // Today's scheduled routes
               Padding(
-                padding: const EdgeInsets.only(left: 4.0, bottom: 8.0, top: 4.0),
+                padding: const EdgeInsets.only(
+                  left: 4.0,
+                  bottom: 8.0,
+                  top: 4.0,
+                ),
                 child: Row(
                   children: [
                     Text(
@@ -619,7 +681,10 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -635,7 +700,7 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
                   ],
                 ),
               ),
-              
+
               if (hasNoRoutes)
                 Center(
                   child: Padding(
@@ -686,6 +751,10 @@ class _DriverRouteListScreenState extends State<DriverRouteListScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: DriversNavbar(
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+      ), // Add the navbar
     );
   }
 }
