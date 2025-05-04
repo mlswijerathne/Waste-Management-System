@@ -36,15 +36,16 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   int _currentPathIndex = 0;
   bool _animationActive = false;
   BitmapDescriptor? _truckIcon;
+  final Color primaryColor = const Color(0xFF59A867);
 
   @override
   void initState() {
     super.initState();
     _route = widget.route;
-    
+
     // Initialize current position to route start point
     _currentPosition = LatLng(_route.startLat, _route.startLng);
-    
+
     _loadTruckIcon();
     _checkLocationPermission();
     _initializeMapData();
@@ -60,7 +61,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       print('Truck icon loaded successfully');
     } catch (e) {
       print('Error loading truck icon from bytes: $e');
-      
+
       try {
         // If custom icon loading fails, use a default truck icon
         // ignore: deprecated_member_use
@@ -71,7 +72,9 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         print('Loaded truck icon from asset image');
       } catch (e) {
         print('Error loading truck icon from asset image: $e');
-        _truckIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+        _truckIcon = BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueBlue,
+        );
         print('Using default blue marker as fallback');
       }
     }
@@ -123,7 +126,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     print('Start Point: ${_route.startLat}, ${_route.startLng}');
 
     // Set current position to start point if not already set
-    if (_currentPosition == null || 
+    if (_currentPosition == null ||
         (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
       _currentPosition = startPoint;
     }
@@ -162,7 +165,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         Polyline(
           polylineId: const PolylineId('route'),
           points: polylinePoints,
-          color: Colors.blue,
+          color: primaryColor,
           width: 5,
         ),
       );
@@ -182,7 +185,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
             print('Ignoring zero coordinates from route progress');
             return;
           }
-          
+
           setState(() {
             _currentPosition = position;
             // Update truck marker position
@@ -205,14 +208,15 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     } else if (_route.isActive) {
       // If route is active but we don't have location permission,
       // use animation along the predefined route
-      
+
       // Make sure we have a valid position before starting animation
-      if (_currentPosition == null || 
-          (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
+      if (_currentPosition == null ||
+          (_currentPosition!.latitude == 0 &&
+              _currentPosition!.longitude == 0)) {
         _currentPosition = LatLng(_route.startLat, _route.startLng);
         _updateTruckMarker(_currentPosition!);
       }
-      
+
       if (!_route.isPaused) {
         _startRouteAnimation();
       }
@@ -225,9 +229,11 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       print('Preventing truck marker at zero coordinates');
       position = LatLng(_route.startLat, _route.startLng);
     }
-    
-    print('Added truck marker at position: ${position.latitude}, ${position.longitude}');
-    
+
+    print(
+      'Added truck marker at position: ${position.latitude}, ${position.longitude}',
+    );
+
     // Calculate rotation angle based on direction of movement
     double rotation = 0.0;
 
@@ -249,7 +255,9 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         markerId: const MarkerId('truck'),
         position: position,
         infoWindow: const InfoWindow(title: 'Truck Location'),
-        icon: _truckIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        icon:
+            _truckIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         rotation: rotation,
         anchor: const Offset(0.5, 0.5),
         zIndex: 2, // Higher z-index to ensure visibility
@@ -275,13 +283,15 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
     // Always start from the route's defined start point
     final initialPosition = LatLng(_route.startLat, _route.startLng);
-    
+
     // Set current position and update truck marker
     _currentPosition = initialPosition;
     _updateTruckMarker(initialPosition);
 
     // Start animation timer
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 300), (
+      timer,
+    ) {
       if (!_animationActive || !mounted) {
         timer.cancel();
         return;
@@ -382,15 +392,17 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
       // Set the driver's location to the route's start point
       final startPoint = LatLng(_route.startLat, _route.startLng);
-      
-      print('Starting route at: ${startPoint.latitude}, ${startPoint.longitude}');
-      
+
+      print(
+        'Starting route at: ${startPoint.latitude}, ${startPoint.longitude}',
+      );
+
       setState(() {
         _currentPosition = startPoint;
-        
+
         // Explicitly update truck marker at start point
         _updateTruckMarker(startPoint);
-        
+
         _route = _route.copyWith(
           isActive: true,
           isPaused: false,
@@ -435,14 +447,15 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   Future<void> _resumeRoute() async {
     try {
       await _routeService.resumeRoute(_route.id);
-      
+
       // If no current position or at zero coordinates, use the route start point
-      if (_currentPosition == null || 
-          (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
+      if (_currentPosition == null ||
+          (_currentPosition!.latitude == 0 &&
+              _currentPosition!.longitude == 0)) {
         _currentPosition = LatLng(_route.startLat, _route.startLng);
         _updateTruckMarker(_currentPosition!);
       }
-      
+
       setState(() {
         _route = _route.copyWith(isPaused: false, resumedAt: DateTime.now());
         if (!_locationPermissionGranted) {
@@ -450,7 +463,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
           _startRouteAnimation();
         }
       });
-      
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Route resumed')));
@@ -564,78 +577,145 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF59A867)),
+        ),
+      );
     }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _route.name,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.green[700],
+        backgroundColor: primaryColor,
         elevation: 0,
+        centerTitle: true,
       ),
       body: Column(
         children: [
           _buildStatusBar(),
           Expanded(
             flex: 5,
-            child: GoogleMap(
-              onMapCreated: (controller) {
-                _mapController = controller;
-                setState(() {
-                  _isMapReady = true;
-                });
+            child: Stack(
+              children: [
+                GoogleMap(
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                    setState(() {
+                      _isMapReady = true;
+                    });
 
-                // Move the camera to the start position
-                controller.animateCamera(
-                  CameraUpdate.newLatLngZoom(
-                    LatLng(_route.startLat, _route.startLng), 
-                    14
-                  ),
-                );
-                
-                // If route is active, ensure truck marker is showing at valid position
-                if (_route.isActive) {
-                  LatLng position;
-                  if (_currentPosition == null || 
-                      (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
-                    position = LatLng(_route.startLat, _route.startLng);
-                  } else {
-                    position = _currentPosition!;
-                  }
-                  
-                  // Use slight delay to make sure the marker gets added after map is ready
-                  Future.delayed(Duration(milliseconds: 500), () {
-                    if (mounted) {
-                      setState(() {
-                        _updateTruckMarker(position);
+                    // Move the camera to the start position
+                    controller.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        LatLng(_route.startLat, _route.startLng),
+                        14,
+                      ),
+                    );
+
+                    // If route is active, ensure truck marker is showing at valid position
+                    if (_route.isActive) {
+                      LatLng position;
+                      if (_currentPosition == null ||
+                          (_currentPosition!.latitude == 0 &&
+                              _currentPosition!.longitude == 0)) {
+                        position = LatLng(_route.startLat, _route.startLng);
+                      } else {
+                        position = _currentPosition!;
+                      }
+
+                      // Use slight delay to make sure the marker gets added after map is ready
+                      Future.delayed(Duration(milliseconds: 500), () {
+                        if (mounted) {
+                          setState(() {
+                            _updateTruckMarker(position);
+                          });
+                        }
                       });
                     }
-                  });
-                }
-              },
-              initialCameraPosition: CameraPosition(
-                target: LatLng(_route.startLat, _route.startLng),
-                zoom: 14,
-              ),
-              markers: _markers,
-              polylines: _polylines,
-              myLocationEnabled: _locationPermissionGranted,
-              myLocationButtonEnabled: _locationPermissionGranted,
-              mapToolbarEnabled: true,
-              compassEnabled: true,
-              zoomControlsEnabled: true,
-              mapType: MapType.normal,
-              tiltGesturesEnabled: true,
-              rotateGesturesEnabled: true,
+                  },
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(_route.startLat, _route.startLng),
+                    zoom: 14,
+                  ),
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: _locationPermissionGranted,
+                  myLocationButtonEnabled: _locationPermissionGranted,
+                  mapToolbarEnabled: true,
+                  compassEnabled: true,
+                  zoomControlsEnabled: false,
+                  mapType: MapType.normal,
+                  tiltGesturesEnabled: true,
+                  rotateGesturesEnabled: true,
+                ),
+
+                // Map controls
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Column(
+                    children: [
+                      _buildMapControlButton(
+                        icon: Icons.my_location,
+                        onPressed: () {
+                          if (_currentPosition != null) {
+                            _mapController?.animateCamera(
+                              CameraUpdate.newLatLngZoom(_currentPosition!, 15),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMapControlButton(
+                        icon: Icons.zoom_in,
+                        onPressed: () {
+                          _mapController?.animateCamera(CameraUpdate.zoomIn());
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMapControlButton(
+                        icon: Icons.zoom_out,
+                        onPressed: () {
+                          _mapController?.animateCamera(CameraUpdate.zoomOut());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          Expanded(flex: 4, child: _buildRouteInfoSection()),
+          Expanded(flex: 3, child: _buildRouteInfoSection()),
         ],
       ),
       bottomNavigationBar: _buildActionButtons(),
+    );
+  }
+
+  Widget _buildMapControlButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 18),
+        color: primaryColor,
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+      ),
     );
   }
 
@@ -647,14 +727,14 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(_getStatusIcon(), color: Colors.white, size: 24),
+          Icon(_getStatusIcon(), color: Colors.white, size: 22),
           const SizedBox(width: 8),
           Text(
             _getStatusText().toUpperCase(),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
         ],
@@ -673,7 +753,8 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   Widget _buildRouteInfoSection() {
     // Get waste category info
     Color categoryColor =
-        _route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
+        _route.wasteCategory == 'organic' ? Colors.green.shade800 : Colors.blue;
+
     String categoryText =
         _route.wasteCategory == 'organic' ? 'ORGANIC WASTE' : 'INORGANIC WASTE';
 
@@ -696,32 +777,110 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         ],
       ),
       child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _route.name,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            // Waste category badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: categoryColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: categoryColor),
-              ),
-              child: Text(
-                categoryText,
-                style: TextStyle(
-                  color: categoryColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _route.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: categoryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: categoryColor.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Text(
+                          categoryText,
+                          style: TextStyle(
+                            color: categoryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                if (_route.isActive) ...[
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Progress',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          border: Border.all(color: primaryColor, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withOpacity(0.2),
+                              spreadRadius: 1,
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${(_route.currentProgressPercentage ?? 0).toInt()}%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 16),
+
+            if (_route.isActive) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: (_route.currentProgressPercentage ?? 0.0) / 100,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                  minHeight: 8,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Route info
             _buildInfoRow(
               Icons.route,
               'Distance',
@@ -737,81 +896,50 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
               'Start Date',
               _formatDateTime(_route.startedAt ?? _route.createdAt),
             ),
-            const SizedBox(height: 16),
-            if (_route.isActive) ...[
-              Row(
-                children: [
-                  const Icon(Icons.trending_up, size: 22, color: Colors.green),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Progress: ${_route.currentProgressPercentage?.toStringAsFixed(1) ?? '0.0'}%',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: (_route.currentProgressPercentage ?? 0.0) / 100,
-                  backgroundColor: Colors.grey[200],
-                  color: Colors.green,
-                  minHeight: 15,
-                ),
-              ),
-            ],
+
+            // Location permission warning
             if (!_locationPermissionGranted) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.yellow[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange),
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[300]!),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.orange,
-                      size: 32,
+                    Icon(
+                      Icons.location_off,
+                      color: Colors.orange[700],
+                      size: 18,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Location Permission Required',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Your location is needed to track route progress.',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: () async {
-                              await openAppSettings();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                            ),
-                            child: const Text('ENABLE LOCATION'),
-                          ),
-                        ],
+                      child: Text(
+                        'Enable location for accurate tracking',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.orange[800],
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await openAppSettings();
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(60, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: Colors.orange[700],
+                      ),
+                      child: const Text(
+                        'ENABLE',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -826,23 +954,34 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: Colors.grey[700]),
-          const SizedBox(width: 10),
-          Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[800],
-              fontWeight: FontWeight.w500,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Icon(icon, size: 16, color: primaryColor),
           ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -851,12 +990,12 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
   Widget _buildActionButtons() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
+            color: Colors.grey.withOpacity(0.2),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(0, -1),
@@ -864,82 +1003,84 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (!_route.isActive && !_route.isCancelled)
-            _buildActionButton(
+            _buildCircleActionButton(
               icon:
                   _route.completedAt != null ? Icons.refresh : Icons.play_arrow,
-              label: _route.completedAt != null ? 'RESTART' : 'START',
-              color: Colors.green[700]!,
+              color: primaryColor,
               onPressed: (_isMapReady) ? _startRoute : null,
-              size: 1,
+              label: _route.completedAt != null ? 'RESTART' : 'START',
             ),
           if (_route.isActive && !_route.isPaused)
-            _buildActionButton(
+            _buildCircleActionButton(
               icon: Icons.pause,
-              label: 'PAUSE',
-              color: Colors.orange[700]!,
+              color: Colors.orange,
               onPressed: _pauseRoute,
-              size: 1,
+              label: 'PAUSE',
             ),
           if (_route.isActive && _route.isPaused)
-            _buildActionButton(
+            _buildCircleActionButton(
               icon: Icons.play_arrow,
-              label: 'RESUME',
-              color: Colors.green[700]!,
+              color: primaryColor,
               onPressed: _resumeRoute,
-              size: 1,
+              label: 'RESUME',
             ),
           if (_route.isActive)
-            _buildActionButton(
-              icon: Icons.check_circle,
-              label: 'COMPLETE',
+            _buildCircleActionButton(
+              icon: Icons.check,
               color: Colors.blue[700]!,
               onPressed: _completeRoute,
-              size: 1,
+              label: 'COMPLETE',
             ),
           if (!_route.isCancelled && _route.completedAt == null)
-            _buildActionButton(
+            _buildCircleActionButton(
               icon: Icons.cancel,
-              label: 'CANCEL',
               color: Colors.red[700]!,
               onPressed: _cancelRoute,
-              size: _route.isActive ? 1 : 1,
+              label: 'CANCEL',
             ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildCircleActionButton({
     required IconData icon,
-    required String label,
     required Color color,
     required VoidCallback? onPressed,
-    required int size,
+    required String label,
   }) {
-    return Expanded(
-      flex: size,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: ElevatedButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon, size: 24),
-          label: Text(
-            label,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: color,
+            shape: const CircleBorder(),
+            elevation: 2,
+            child: InkWell(
+              onTap: onPressed,
+              customBorder: const CircleBorder(),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(shape: BoxShape.circle),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
             ),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            disabledBackgroundColor: Colors.grey,
           ),
-        ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -956,7 +1097,7 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     if (_route.isPaused) return Colors.orange[700]!;
     if (_route.completedAt != null) return Colors.grey[700]!;
     if (_route.cancelledAt != null) return Colors.red[700]!;
-    if (_route.isActive) return Colors.green[700]!;
+    if (_route.isActive) return primaryColor;
     return Colors.blue[700]!;
   }
 
