@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 
 class DriverRouteDetailScreen extends StatefulWidget {
   final RouteModel route;
@@ -37,49 +38,66 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   bool _animationActive = false;
   BitmapDescriptor? _truckIcon;
   final Color primaryColor = const Color(0xFF59A867);
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
   void initState() {
     super.initState();
     _route = widget.route;
 
-    // Initialize current position to route start point
     _currentPosition = LatLng(_route.startLat, _route.startLng);
 
-    _loadTruckIcon();
-    _checkLocationPermission();
-    _initializeMapData();
+    // Load truck icon first to ensure it's ready when we need it
+    _loadTruckIcon().then((_) {
+      _checkLocationPermission();
+      _initializeMapData();
+    });
   }
 
   Future<void> _loadTruckIcon() async {
     try {
+      // First attempt: Load from asset and convert to bytes
       final Uint8List markerIcon = await getBytesFromAsset(
         'assets/icons/truck_icon.png',
         80,
       );
       _truckIcon = BitmapDescriptor.fromBytes(markerIcon);
-      print('Truck icon loaded successfully');
+      print('Truck icon loaded successfully from bytes');
+
+      if (_currentPosition != null && mounted) {
+        setState(() {
+          _updateTruckMarker(_currentPosition!);
+        });
+      }
+      return;
     } catch (e) {
       print('Error loading truck icon from bytes: $e');
-
-      try {
-        // If custom icon loading fails, use a default truck icon
-        // ignore: deprecated_member_use
-        _truckIcon = await BitmapDescriptor.fromAssetImage(
-          const ImageConfiguration(size: Size(80, 80)),
-          'assets/icons/truck_icon.png',
-        );
-        print('Loaded truck icon from asset image');
-      } catch (e) {
-        print('Error loading truck icon from asset image: $e');
-        _truckIcon = BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueBlue,
-        );
-        print('Using default blue marker as fallback');
-      }
     }
 
-    // If we already have a position, update the truck marker with the icon
+    try {
+      // Second attempt: Use BitmapDescriptor.fromAssetImage
+      _truckIcon = await BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(80, 80)),
+        'assets/icons/truck_icon.png',
+      );
+      print('Loaded truck icon from asset image');
+
+      if (_currentPosition != null && mounted) {
+        setState(() {
+          _updateTruckMarker(_currentPosition!);
+        });
+      }
+      return;
+    } catch (e) {
+      print('Error loading truck icon from asset image: $e');
+    }
+
+    // Fallback to default marker
+    _truckIcon = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueBlue,
+    );
+    print('Using default blue marker as fallback');
+
     if (_currentPosition != null && mounted) {
       setState(() {
         _updateTruckMarker(_currentPosition!);
@@ -100,32 +118,31 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   }
 
   Future<void> _checkLocationPermission() async {
-    // Check if location permission is granted
-    final status = await Permission.location.status;
+    LocationPermission permission = await Geolocator.checkPermission();
     setState(() {
-      _locationPermissionGranted = status.isGranted;
+      _locationPermissionGranted =
+          permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
     });
 
-    // If not granted, request it
-    if (!status.isGranted) {
-      final result = await Permission.location.request();
+    if (!_locationPermissionGranted) {
+      permission = await Geolocator.requestPermission();
       setState(() {
-        _locationPermissionGranted = result.isGranted;
+        _locationPermissionGranted =
+            permission == LocationPermission.always ||
+            permission == LocationPermission.whileInUse;
       });
     }
 
-    // Setup route progress listener after checking permissions
     _setupRouteProgressListener();
   }
 
   void _initializeMapData() {
-    // Add start and end markers
     final startPoint = LatLng(_route.startLat, _route.startLng);
     final endPoint = LatLng(_route.endLat, _route.endLng);
 
     print('Start Point: ${_route.startLat}, ${_route.startLng}');
 
-    // Set current position to start point if not already set
     if (_currentPosition == null ||
         (_currentPosition!.latitude == 0 && _currentPosition!.longitude == 0)) {
       _currentPosition = startPoint;
@@ -149,12 +166,10 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       ),
     );
 
-    // Add truck marker if route is active
     if (_route.isActive) {
       _updateTruckMarker(startPoint);
     }
 
-    // Add route polyline if available
     if (_route.actualDirectionPath.isNotEmpty) {
       final polylinePoints =
           _route.actualDirectionPath
@@ -177,39 +192,51 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   }
 
   void _setupRouteProgressListener() {
+    _positionStreamSubscription?.cancel();
+
     if (_route.isActive && _locationPermissionGranted) {
-      _routeService.getRouteProgress(_route.id).listen((position) {
-        if (position != null && mounted) {
-          // Filter out invalid zero coordinates
-          if (position.latitude == 0.0 && position.longitude == 0.0) {
-            print('Ignoring zero coordinates from route progress');
-            return;
-          }
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      ).listen(
+        (Position position) {
+          if (mounted) {
+            final newPosition = LatLng(position.latitude, position.longitude);
 
-          setState(() {
-            _currentPosition = position;
-            // Update truck marker position
-            _updateTruckMarker(position);
-          });
+            if (position.latitude == 0.0 && position.longitude == 0.0) {
+              print('Ignoring zero coordinates from live position');
+              return;
+            }
 
-          // Move camera to follow the current position only if map is ready
-          if (_isMapReady && _mapController != null) {
-            _mapController?.animateCamera(CameraUpdate.newLatLng(position));
+            print(
+              'Live position update: ${position.latitude}, ${position.longitude}',
+            );
+
+            setState(() {
+              _currentPosition = newPosition;
+              _updateTruckMarker(newPosition);
+            });
+
+            _updateRouteProgress(newPosition);
+
+            if (_isMapReady && _mapController != null) {
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLng(newPosition),
+              );
+            }
           }
-        } else if (_currentPosition == null && mounted) {
-          // If no position received but route is active, use start point
-          LatLng startPoint = LatLng(_route.startLat, _route.startLng);
-          setState(() {
-            _currentPosition = startPoint;
-            _updateTruckMarker(startPoint);
-          });
-        }
-      });
+        },
+        onError: (e) {
+          print('Error getting position updates: $e');
+
+          if (_route.isActive && !_route.isPaused && !_animationActive) {
+            _startRouteAnimation();
+          }
+        },
+      );
     } else if (_route.isActive) {
-      // If route is active but we don't have location permission,
-      // use animation along the predefined route
-
-      // Make sure we have a valid position before starting animation
       if (_currentPosition == null ||
           (_currentPosition!.latitude == 0 &&
               _currentPosition!.longitude == 0)) {
@@ -223,8 +250,47 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     }
   }
 
+  void _updateRouteProgress(LatLng position) {
+    if (!_route.isActive || _route.isPaused) return;
+
+    double minDistance = double.infinity;
+    int closestPointIndex = 0;
+
+    for (int i = 0; i < _route.actualDirectionPath.length; i++) {
+      final pathPoint = LatLng(
+        _route.actualDirectionPath[i]['lat']!,
+        _route.actualDirectionPath[i]['lng']!,
+      );
+
+      final distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        pathPoint.latitude,
+        pathPoint.longitude,
+      );
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestPointIndex = i;
+      }
+    }
+
+    double completionPercentage =
+        (closestPointIndex * 100) / _route.actualDirectionPath.length;
+    completionPercentage = min(completionPercentage, 100.0);
+
+    _routeService.updateRouteProgress(
+      _route.id,
+      position,
+      completionPercentage: completionPercentage,
+    );
+
+    setState(() {
+      _route = _route.copyWith(currentProgressPercentage: completionPercentage);
+    });
+  }
+
   void _updateTruckMarker(LatLng position) {
-    // Never use zero coordinates
     if (position.latitude == 0.0 && position.longitude == 0.0) {
       print('Preventing truck marker at zero coordinates');
       position = LatLng(_route.startLat, _route.startLng);
@@ -234,7 +300,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       'Added truck marker at position: ${position.latitude}, ${position.longitude}',
     );
 
-    // Calculate rotation angle based on direction of movement
     double rotation = 0.0;
 
     if (_currentPathIndex > 0 &&
@@ -244,11 +309,9 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         _route.actualDirectionPath[_currentPathIndex - 1]['lng']!,
       );
 
-      // Calculate bearing between previous and current point
       rotation = _getBearing(previousPoint, position);
     }
 
-    // Remove old marker and add new one with rotation
     _markers.removeWhere((marker) => marker.markerId.value == 'truck');
     _markers.add(
       Marker(
@@ -260,35 +323,29 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         rotation: rotation,
         anchor: const Offset(0.5, 0.5),
-        zIndex: 2, // Higher z-index to ensure visibility
+        zIndex: 2,
       ),
     );
   }
 
   void _startRouteAnimation() {
-    // Stop any existing animation
     if (_animationTimer != null && _animationTimer!.isActive) {
       _animationTimer!.cancel();
     }
 
-    // Reset position to start
     _currentPathIndex = 0;
     _animationActive = true;
 
-    // Only start animation if we have route points
     if (_route.actualDirectionPath.isEmpty) {
       print('Cannot start animation: route path is empty');
       return;
     }
 
-    // Always start from the route's defined start point
     final initialPosition = LatLng(_route.startLat, _route.startLng);
 
-    // Set current position and update truck marker
     _currentPosition = initialPosition;
     _updateTruckMarker(initialPosition);
 
-    // Start animation timer
     _animationTimer = Timer.periodic(const Duration(milliseconds: 300), (
       timer,
     ) {
@@ -297,41 +354,40 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         return;
       }
 
-      // Increment the path index
       _currentPathIndex++;
 
-      // If we reached the end of the path, reset or stop
       if (_currentPathIndex >= _route.actualDirectionPath.length) {
         timer.cancel();
         _animationActive = false;
         return;
       }
 
-      // Get current point
       final currentPoint = LatLng(
         _route.actualDirectionPath[_currentPathIndex]['lat']!,
         _route.actualDirectionPath[_currentPathIndex]['lng']!,
       );
 
-      // Update truck marker
       setState(() {
         _currentPosition = currentPoint;
         _updateTruckMarker(currentPoint);
 
-        // Update progress percentage based on path progress
         final progressPercentage =
             (_currentPathIndex * 100) / _route.actualDirectionPath.length;
         _route = _route.copyWith(currentProgressPercentage: progressPercentage);
+
+        _routeService.updateRouteProgress(
+          _route.id,
+          currentPoint,
+          completionPercentage: progressPercentage,
+        );
       });
 
-      // Move camera to follow the animated marker if map is ready
       if (_isMapReady && _mapController != null) {
         _mapController?.animateCamera(CameraUpdate.newLatLng(currentPoint));
       }
     });
   }
 
-  // Calculate bearing between two points (for truck rotation)
   double _getBearing(LatLng start, LatLng end) {
     final startLat = start.latitude * (pi / 180);
     final startLng = start.longitude * (pi / 180);
@@ -346,7 +402,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
     final bearing = atan2(y, x);
 
-    // Convert to degrees
     final bearingDegrees = bearing * (180 / pi);
     return (bearingDegrees + 360) % 360;
   }
@@ -354,7 +409,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   Future<void> _startRoute() async {
     try {
       if (!_locationPermissionGranted) {
-        // Show alert asking for location permission
         bool shouldRequest = await showDialog(
           context: context,
           builder:
@@ -379,8 +433,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         if (shouldRequest == true) {
           await openAppSettings();
           return;
-        } else {
-          // Continue with simulation
         }
       }
 
@@ -390,7 +442,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         await _routeService.startRoute(_route.id);
       }
 
-      // Set the driver's location to the route's start point
       final startPoint = LatLng(_route.startLat, _route.startLng);
 
       print(
@@ -400,7 +451,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       setState(() {
         _currentPosition = startPoint;
 
-        // Explicitly update truck marker at start point
         _updateTruckMarker(startPoint);
 
         _route = _route.copyWith(
@@ -412,7 +462,12 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         );
       });
 
-      // Move the camera to the start position
+      await _routeService.updateRouteProgress(
+        _route.id,
+        startPoint,
+        completionPercentage: 0.0,
+      );
+
       if (_isMapReady && _mapController != null) {
         print('Animating camera to: ${_route.startLat}, ${_route.startLng}');
         _mapController!.animateCamera(
@@ -448,7 +503,6 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     try {
       await _routeService.resumeRoute(_route.id);
 
-      // If no current position or at zero coordinates, use the route start point
       if (_currentPosition == null ||
           (_currentPosition!.latitude == 0 &&
               _currentPosition!.longitude == 0)) {
@@ -461,6 +515,8 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         if (!_locationPermissionGranted) {
           _animationActive = true;
           _startRouteAnimation();
+        } else {
+          _setupRouteProgressListener();
         }
       });
 
@@ -479,6 +535,9 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
       await _routeService.pauseRoute(_route.id);
       setState(() {
         _route = _route.copyWith(isPaused: true, pausedAt: DateTime.now());
+
+        _positionStreamSubscription?.cancel();
+
         if (!_locationPermissionGranted) {
           _animationActive = false;
           if (_animationTimer != null && _animationTimer!.isActive) {
@@ -498,12 +557,225 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
 
   @override
   void dispose() {
-    // Cancel animation timer
     if (_animationTimer != null && _animationTimer!.isActive) {
       _animationTimer!.cancel();
     }
+
+    _positionStreamSubscription?.cancel();
+
     _mapController?.dispose();
     super.dispose();
+  }
+
+  // Status bar showing the current route status
+  Widget _buildStatusBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      color: _getStatusColor().withOpacity(0.15),
+      child: Row(
+        children: [
+          Icon(_getStatusIcon(), color: _getStatusColor(), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _getStatusText(),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: _getStatusColor(),
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Info row used in route information section
+  Widget _buildInfoRow(IconData icon, String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text(
+            '$title: ',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Map control button
+  Widget _buildMapControlButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            spreadRadius: 1,
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, size: 18),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  // Action buttons at bottom of screen
+  Widget _buildActionButtons() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          if (!_route.isActive && !_route.isCancelled)
+            _buildCircleActionButton(
+              icon:
+                  _route.completedAt != null ? Icons.refresh : Icons.play_arrow,
+              color: primaryColor,
+              onPressed: (_isMapReady) ? _startRoute : null,
+              label: _route.completedAt != null ? 'RESTART' : 'START',
+            ),
+          if (_route.isActive && !_route.isPaused)
+            _buildCircleActionButton(
+              icon: Icons.pause,
+              color: Colors.orange,
+              onPressed: _pauseRoute,
+              label: 'PAUSE',
+            ),
+          if (_route.isActive && _route.isPaused)
+            _buildCircleActionButton(
+              icon: Icons.play_arrow,
+              color: primaryColor,
+              onPressed: _resumeRoute,
+              label: 'RESUME',
+            ),
+          if (_route.isActive)
+            _buildCircleActionButton(
+              icon: Icons.check,
+              color: Colors.blue[700]!,
+              onPressed: _completeRoute,
+              label: 'COMPLETE',
+            ),
+          if (!_route.isCancelled && _route.completedAt == null)
+            _buildCircleActionButton(
+              icon: Icons.cancel,
+              color: Colors.red[700]!,
+              onPressed: _cancelRoute,
+              label: 'CANCEL',
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCircleActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+    required String label,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: color,
+            shape: const CircleBorder(),
+            elevation: 2,
+            child: InkWell(
+              onTap: onPressed,
+              customBorder: const CircleBorder(),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(shape: BoxShape.circle),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getStatusText() {
+    if (_route.isPaused) return 'Route Paused';
+    if (_route.completedAt != null) return 'Route Completed';
+    if (_route.cancelledAt != null) return 'Route Cancelled';
+    if (_route.isActive) return 'Route Active';
+    return 'Ready to Start';
+  }
+
+  Color _getStatusColor() {
+    if (_route.isPaused) return Colors.orange[700]!;
+    if (_route.completedAt != null) return Colors.grey[700]!;
+    if (_route.cancelledAt != null) return Colors.red[700]!;
+    if (_route.isActive) return primaryColor;
+    return Colors.blue[700]!;
+  }
+
+  IconData _getStatusIcon() {
+    if (_route.isPaused) return Icons.pause_circle_filled;
+    if (_route.completedAt != null) return Icons.check_circle;
+    if (_route.cancelledAt != null) return Icons.cancel;
+    if (_route.isActive) return Icons.directions_car;
+    return Icons.schedule;
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return DateFormat('MMM d, yyyy - h:mm a').format(dateTime);
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final now = DateTime.now();
+    final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return DateFormat('h:mm a').format(dt);
   }
 
   Future<void> _completeRoute() async {
@@ -562,192 +834,13 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Route cancelled')));
-        Navigator.pop(
-          context,
-          true,
-        ); // Return true to indicate route cancellation
+        Navigator.pop(context, true);
       } catch (e) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error cancelling route: $e')));
       }
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF59A867)),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _route.name,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: primaryColor,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          _buildStatusBar(),
-          Expanded(
-            flex: 5,
-            child: Stack(
-              children: [
-                GoogleMap(
-                  onMapCreated: (controller) {
-                    _mapController = controller;
-                    setState(() {
-                      _isMapReady = true;
-                    });
-
-                    // Move the camera to the start position
-                    controller.animateCamera(
-                      CameraUpdate.newLatLngZoom(
-                        LatLng(_route.startLat, _route.startLng),
-                        14,
-                      ),
-                    );
-
-                    // If route is active, ensure truck marker is showing at valid position
-                    if (_route.isActive) {
-                      LatLng position;
-                      if (_currentPosition == null ||
-                          (_currentPosition!.latitude == 0 &&
-                              _currentPosition!.longitude == 0)) {
-                        position = LatLng(_route.startLat, _route.startLng);
-                      } else {
-                        position = _currentPosition!;
-                      }
-
-                      // Use slight delay to make sure the marker gets added after map is ready
-                      Future.delayed(Duration(milliseconds: 500), () {
-                        if (mounted) {
-                          setState(() {
-                            _updateTruckMarker(position);
-                          });
-                        }
-                      });
-                    }
-                  },
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(_route.startLat, _route.startLng),
-                    zoom: 14,
-                  ),
-                  markers: _markers,
-                  polylines: _polylines,
-                  myLocationEnabled: _locationPermissionGranted,
-                  myLocationButtonEnabled: _locationPermissionGranted,
-                  mapToolbarEnabled: true,
-                  compassEnabled: true,
-                  zoomControlsEnabled: false,
-                  mapType: MapType.normal,
-                  tiltGesturesEnabled: true,
-                  rotateGesturesEnabled: true,
-                ),
-
-                // Map controls
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Column(
-                    children: [
-                      _buildMapControlButton(
-                        icon: Icons.my_location,
-                        onPressed: () {
-                          if (_currentPosition != null) {
-                            _mapController?.animateCamera(
-                              CameraUpdate.newLatLngZoom(_currentPosition!, 15),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      _buildMapControlButton(
-                        icon: Icons.zoom_in,
-                        onPressed: () {
-                          _mapController?.animateCamera(CameraUpdate.zoomIn());
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      _buildMapControlButton(
-                        icon: Icons.zoom_out,
-                        onPressed: () {
-                          _mapController?.animateCamera(CameraUpdate.zoomOut());
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(flex: 3, child: _buildRouteInfoSection()),
-        ],
-      ),
-      bottomNavigationBar: _buildActionButtons(),
-    );
-  }
-
-  Widget _buildMapControlButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(icon, size: 18),
-        color: primaryColor,
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
-      ),
-    );
-  }
-
-  Widget _buildStatusBar() {
-    return Container(
-      color: _getStatusColor(),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      width: double.infinity,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(_getStatusIcon(), color: Colors.white, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            _getStatusText().toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getStatusIcon() {
-    if (_route.isPaused) return Icons.pause_circle_filled;
-    if (_route.completedAt != null) return Icons.check_circle;
-    if (_route.cancelledAt != null) return Icons.cancel;
-    if (_route.isActive) return Icons.directions_car;
-    return Icons.schedule;
   }
 
   Widget _buildRouteInfoSection() {
@@ -931,15 +1024,13 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
                       onPressed: () async {
                         await openAppSettings();
                       },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(60, 30),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: Colors.orange[700],
-                      ),
-                      child: const Text(
-                        'ENABLE',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      child: Text(
+                        'SETTINGS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange[900],
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -952,162 +1043,125 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF59A867)),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _route.name,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: Column(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 16, color: primaryColor),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+          _buildStatusBar(),
+          Expanded(
+            flex: 5,
+            child: Stack(
+              children: [
+                GoogleMap(
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                    setState(() {
+                      _isMapReady = true;
+                    });
+
+                    // Move the camera to the start position
+                    controller.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        LatLng(_route.startLat, _route.startLng),
+                        14,
+                      ),
+                    );
+
+                    // If route is active, ensure truck marker is showing at valid position
+                    if (_route.isActive) {
+                      LatLng position;
+                      if (_currentPosition == null ||
+                          (_currentPosition!.latitude == 0 &&
+                              _currentPosition!.longitude == 0)) {
+                        position = LatLng(_route.startLat, _route.startLng);
+                      } else {
+                        position = _currentPosition!;
+                      }
+
+                      // Use slight delay to make sure the marker gets added after map is ready
+                      Future.delayed(Duration(milliseconds: 500), () {
+                        if (mounted) {
+                          setState(() {
+                            _updateTruckMarker(position);
+                          });
+                        }
+                      });
+                    }
+                  },
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(_route.startLat, _route.startLng),
+                    zoom: 14,
+                  ),
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: _locationPermissionGranted,
+                  myLocationButtonEnabled: _locationPermissionGranted,
+                  mapToolbarEnabled: true,
+                  compassEnabled: true,
+                  zoomControlsEnabled: false,
+                  mapType: MapType.normal,
+                  tiltGesturesEnabled: true,
+                  rotateGesturesEnabled: true,
                 ),
-              ),
-            ],
+
+                // Map controls
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Column(
+                    children: [
+                      _buildMapControlButton(
+                        icon: Icons.my_location,
+                        onPressed: () {
+                          if (_currentPosition != null) {
+                            _mapController?.animateCamera(
+                              CameraUpdate.newLatLngZoom(_currentPosition!, 15),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMapControlButton(
+                        icon: Icons.zoom_in,
+                        onPressed: () {
+                          _mapController?.animateCamera(CameraUpdate.zoomIn());
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMapControlButton(
+                        icon: Icons.zoom_out,
+                        onPressed: () {
+                          _mapController?.animateCamera(CameraUpdate.zoomOut());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          Expanded(flex: 3, child: _buildRouteInfoSection()),
         ],
       ),
+      bottomNavigationBar: _buildActionButtons(),
     );
-  }
-
-  Widget _buildActionButtons() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (!_route.isActive && !_route.isCancelled)
-            _buildCircleActionButton(
-              icon:
-                  _route.completedAt != null ? Icons.refresh : Icons.play_arrow,
-              color: primaryColor,
-              onPressed: (_isMapReady) ? _startRoute : null,
-              label: _route.completedAt != null ? 'RESTART' : 'START',
-            ),
-          if (_route.isActive && !_route.isPaused)
-            _buildCircleActionButton(
-              icon: Icons.pause,
-              color: Colors.orange,
-              onPressed: _pauseRoute,
-              label: 'PAUSE',
-            ),
-          if (_route.isActive && _route.isPaused)
-            _buildCircleActionButton(
-              icon: Icons.play_arrow,
-              color: primaryColor,
-              onPressed: _resumeRoute,
-              label: 'RESUME',
-            ),
-          if (_route.isActive)
-            _buildCircleActionButton(
-              icon: Icons.check,
-              color: Colors.blue[700]!,
-              onPressed: _completeRoute,
-              label: 'COMPLETE',
-            ),
-          if (!_route.isCancelled && _route.completedAt == null)
-            _buildCircleActionButton(
-              icon: Icons.cancel,
-              color: Colors.red[700]!,
-              onPressed: _cancelRoute,
-              label: 'CANCEL',
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCircleActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback? onPressed,
-    required String label,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Material(
-            color: color,
-            shape: const CircleBorder(),
-            elevation: 2,
-            child: InkWell(
-              onTap: onPressed,
-              customBorder: const CircleBorder(),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(shape: BoxShape.circle),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getStatusText() {
-    if (_route.isPaused) return 'Route Paused';
-    if (_route.completedAt != null) return 'Route Completed';
-    if (_route.cancelledAt != null) return 'Route Cancelled';
-    if (_route.isActive) return 'Route Active';
-    return 'Ready to Start';
-  }
-
-  Color _getStatusColor() {
-    if (_route.isPaused) return Colors.orange[700]!;
-    if (_route.completedAt != null) return Colors.grey[700]!;
-    if (_route.cancelledAt != null) return Colors.red[700]!;
-    if (_route.isActive) return primaryColor;
-    return Colors.blue[700]!;
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return DateFormat('MMM d, HH:mm').format(dateTime);
-  }
-
-  String _formatTime(TimeOfDay time) {
-    final now = DateTime.now();
-    final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    return DateFormat('h:mm a').format(dt);
   }
 }

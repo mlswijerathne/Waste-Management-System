@@ -5,6 +5,7 @@ import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:waste_management/widgets/driver_navbar.dart';
 
 class DriverSpecialGarbageScreen extends StatefulWidget {
   const DriverSpecialGarbageScreen({Key? key}) : super(key: key);
@@ -196,6 +197,12 @@ class _DriverSpecialGarbageScreenState
                         : _buildRequestsList()),
           ),
         ],
+      ),
+      bottomNavigationBar: DriversNavbar(
+        currentIndex: 2, // Set index to 2 for the Requests tab
+        onTap: (index) {
+          // The navigation is handled within the DriversNavbar widget
+        },
       ),
     );
   }

@@ -17,14 +17,16 @@ class ResidentActiveRoutesScreen extends StatefulWidget {
   const ResidentActiveRoutesScreen({Key? key}) : super(key: key);
 
   @override
-  _ResidentActiveRoutesScreenState createState() => _ResidentActiveRoutesScreenState();
+  _ResidentActiveRoutesScreenState createState() =>
+      _ResidentActiveRoutesScreenState();
 }
 
-class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen> {
+class _ResidentActiveRoutesScreenState
+    extends State<ResidentActiveRoutesScreen> {
   final RouteService _routeService = RouteService();
   final AuthService _authService = AuthService();
   final Color primaryColor = Color(0xFF59A867);
-  
+
   bool _isLoading = true;
   UserModel? _currentUser;
   List<Map<String, dynamic>> _nearbyActiveRoutes = [];
@@ -33,57 +35,91 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
   Set<Polyline> _polylines = {};
   BitmapDescriptor? _truckIcon;
   Map<String, StreamSubscription> _routeSubscriptions = {};
-  
+  Timer? _liveUpdateTimer; // Add timer for periodic updates
+
   // Selected route state
   String? _selectedRouteId;
-  
+
   // Default map position (will be updated with resident's location)
-  static final LatLng _defaultPosition = LatLng(6.9271, 79.8612); // Colombo, Sri Lanka
-  
+  static final LatLng _defaultPosition = LatLng(
+    6.9271,
+    79.8612,
+  ); // Colombo, Sri Lanka
+
   // Distance threshold in km for considering a route near resident
   static const double _nearbyThreshold = 0.5;
-  
+
   @override
   void initState() {
     super.initState();
-    _loadTruckIcon();
-    _loadUserAndRoutes();
+    // Load truck icon first to ensure it's ready when we need it
+    _loadTruckIcon().then((_) {
+      _loadUserAndRoutes();
+    });
+
+    // Set up a timer to refresh data every 10 seconds
+    _liveUpdateTimer = Timer.periodic(Duration(seconds: 10), (_) {
+      if (!_isLoading && mounted) {
+        _fetchNearbyActiveRoutes(showLoadingIndicator: false);
+      }
+    });
   }
-  
+
   @override
   void dispose() {
     // Cancel all route progress subscriptions
     _routeSubscriptions.forEach((_, subscription) => subscription.cancel());
     _mapController?.dispose();
+    _liveUpdateTimer?.cancel();
     super.dispose();
   }
-  
+
   Future<void> _loadTruckIcon() async {
     try {
+      // First attempt: Load from asset and convert to bytes
       final Uint8List markerIcon = await getBytesFromAsset(
         'assets/icons/truck_icon.png',
         80,
       );
       _truckIcon = BitmapDescriptor.fromBytes(markerIcon);
-      print('Truck icon loaded successfully');
+      print('Truck icon loaded successfully from bytes');
+
+      // If we already have markers, update them with the new truck icon
+      if (_markers.isNotEmpty && mounted) {
+        setState(() {
+          _prepareMapData();
+        });
+      }
+      return;
     } catch (e) {
       print('Error loading truck icon from bytes: $e');
-      
-      try {
-        // If custom icon loading fails, use a default truck icon
-        // ignore: deprecated_member_use
-        _truckIcon = await BitmapDescriptor.fromAssetImage(
-          const ImageConfiguration(size: Size(80, 80)),
-          'assets/icons/truck_icon.png',
-        );
-        print('Loaded truck icon from asset image');
-      } catch (e) {
-        print('Error loading truck icon from asset image: $e');
-        _truckIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
-        print('Using default blue marker as fallback');
-      }
     }
-    
+
+    try {
+      // Second attempt: Use BitmapDescriptor.fromAssetImage
+      _truckIcon = await BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(80, 80)),
+        'assets/icons/truck_icon.png',
+      );
+      print('Loaded truck icon from asset image');
+
+      // If we already have markers, update them with the new truck icon
+      if (_markers.isNotEmpty && mounted) {
+        setState(() {
+          _prepareMapData();
+        });
+      }
+      return;
+    } catch (e) {
+      print('Error loading truck icon from asset image: $e');
+    }
+
+    // Fallback to default marker
+    _truckIcon = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueBlue,
+    );
+    print('Using default blue marker as fallback');
+
     // If we already have markers, update them with the new truck icon
     if (_markers.isNotEmpty && mounted) {
       setState(() {
@@ -103,33 +139,32 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
       format: ui.ImageByteFormat.png,
     ))!.buffer.asUint8List();
   }
-  
+
   Future<void> _loadUserAndRoutes() async {
     try {
       // Get current user data
       final user = await _authService.getCurrentUser();
-      
+
       if (user == null) {
         _showSnackBar('User not found. Please login again.');
         setState(() => _isLoading = false);
         return;
       }
-      
+
       // Check if user has location saved
       if (user.latitude == null || user.longitude == null) {
         _showSnackBar('Please set your location first');
-        setState(() { 
+        setState(() {
           _isLoading = false;
           _currentUser = user;
         });
         return;
       }
-      
+
       setState(() => _currentUser = user);
-      
+
       // Fetch active routes
       await _fetchNearbyActiveRoutes();
-      
     } catch (e) {
       print('Error loading user and routes: $e');
       _showSnackBar('Error: $e');
@@ -137,120 +172,146 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
     }
   }
 
-  Future<void> _fetchNearbyActiveRoutes() async {
+  Future<void> _fetchNearbyActiveRoutes({
+    bool showLoadingIndicator = true,
+  }) async {
     try {
       if (_currentUser?.latitude == null || _currentUser?.longitude == null) {
         setState(() => _isLoading = false);
         return;
       }
-      
+
+      // Show loading indicator only when initially loading or explicitly requested
+      if (showLoadingIndicator) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
+
       // Cancel any existing subscriptions
       _routeSubscriptions.forEach((_, subscription) => subscription.cancel());
       _routeSubscriptions.clear();
-      
+
       // Get active routes with driver info
       final activeRoutesStream = _routeService.getActiveRoutesWithDriverInfo();
-      
+
       // Wait for first event from stream
       final activeRoutes = await activeRoutesStream.first;
-      
+
       List<Map<String, dynamic>> nearbyRoutes = [];
-      
+
       // Filter routes by checking if resident is near route path
       for (var routeData in activeRoutes) {
         final route = routeData['route'] as RouteModel;
         final currentPosition = routeData['currentPosition'] as LatLng?;
-        final completionPercentage = routeData['completionPercentage'] as double?;
-        
+        final completionPercentage =
+            routeData['completionPercentage'] as double?;
+
         if (route.actualDirectionPath.isEmpty) continue;
-        
+
         // Check if resident's location is on or near this route's path
         final isNearRoute = _isResidentNearRoutePath(
           LatLng(_currentUser!.latitude!, _currentUser!.longitude!),
-          route.actualDirectionPath
+          route.actualDirectionPath,
         );
-        
+
         if (isNearRoute) {
           nearbyRoutes.add({
             'route': route,
-            'currentPosition': currentPosition ?? LatLng(route.startLat, route.startLng),
+            'currentPosition':
+                currentPosition ?? LatLng(route.startLat, route.startLng),
             'completionPercentage': completionPercentage ?? 0.0,
-            'distanceToResident': _calculateDistanceToResident(route, _currentUser!),
+            'distanceToResident': _calculateDistanceToResident(
+              route,
+              _currentUser!,
+            ),
           });
-          
+
           // Setup real-time tracking for this route
           _setupRouteProgressListener(route.id);
         }
       }
-      
+
       // Sort by distance to resident
-      nearbyRoutes.sort((a, b) => 
-        (a['distanceToResident'] as double).compareTo(b['distanceToResident'] as double)
+      nearbyRoutes.sort(
+        (a, b) => (a['distanceToResident'] as double).compareTo(
+          b['distanceToResident'] as double,
+        ),
       );
-      
+
       setState(() {
         _nearbyActiveRoutes = nearbyRoutes;
         _isLoading = false;
-        
+
         // If there was a selected route and it's no longer available, clear selection
         if (_selectedRouteId != null) {
           bool routeStillExists = nearbyRoutes.any(
-            (r) => (r['route'] as RouteModel).id == _selectedRouteId
+            (r) => (r['route'] as RouteModel).id == _selectedRouteId,
           );
-          
+
           if (!routeStillExists) {
             _selectedRouteId = null;
           }
         }
       });
-      
+
       // Prepare map data
       _prepareMapData();
-      
     } catch (e) {
       print('Error fetching nearby active routes: $e');
       _showSnackBar('Error fetching routes: $e');
       setState(() => _isLoading = false);
     }
   }
-  
+
   void _setupRouteProgressListener(String routeId) {
     // Cancel existing subscription for this route if exists
     _routeSubscriptions[routeId]?.cancel();
-    
-    // Create new subscription
-    _routeSubscriptions[routeId] = _routeService.getRouteProgress(routeId).listen((position) {
-      if (position != null && mounted) {
-        // Filter out invalid zero coordinates
-        if (position.latitude == 0.0 && position.longitude == 0.0) {
-          print('Ignoring zero coordinates from route progress');
-          return;
-        }
-        
-        // Find the route in our list
-        int routeIndex = _nearbyActiveRoutes.indexWhere(
-          (r) => (r['route'] as RouteModel).id == routeId
-        );
-        
-        if (routeIndex != -1) {
-          setState(() {
-            // Update current position for this route
-            _nearbyActiveRoutes[routeIndex]['currentPosition'] = position;
-            
-            // Only update the marker if this is the currently selected route
-            if (_selectedRouteId == routeId) {
-              _updateTruckMarker(
-                position,
-                routeId,
-                _nearbyActiveRoutes[routeIndex]['route'] as RouteModel
+
+    // Create new subscription - use a shorter timeout for more frequent updates
+    _routeSubscriptions[routeId] = _routeService
+        .getRouteProgress(routeId)
+        .listen(
+          (position) {
+            if (position != null && mounted) {
+              // Filter out invalid zero coordinates
+              if (position.latitude == 0.0 && position.longitude == 0.0) {
+                print('Ignoring zero coordinates from route progress');
+                return;
+              }
+
+              print(
+                'Route $routeId live position update: ${position.latitude}, ${position.longitude}',
               );
+
+              // Find the route in our list
+              int routeIndex = _nearbyActiveRoutes.indexWhere(
+                (r) => (r['route'] as RouteModel).id == routeId,
+              );
+
+              if (routeIndex != -1) {
+                setState(() {
+                  // Update current position for this route
+                  _nearbyActiveRoutes[routeIndex]['currentPosition'] = position;
+
+                  // Only update the marker if this is the currently selected route
+                  if (_selectedRouteId == routeId) {
+                    _updateTruckMarker(
+                      position,
+                      routeId,
+                      _nearbyActiveRoutes[routeIndex]['route'] as RouteModel,
+                    );
+                  }
+                });
+              }
             }
-          });
-        }
-      }
-    });
+          },
+          onError: (e) {
+            print('Error in route progress stream for route $routeId: $e');
+          },
+        );
   }
-  
+
   // Calculate bearing between two points (for truck rotation)
   double _getBearing(LatLng start, LatLng end) {
     final startLat = start.latitude * (pi / 180);
@@ -270,57 +331,39 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
     final bearingDegrees = bearing * (180 / pi);
     return (bearingDegrees + 360) % 360;
   }
-  
+
   void _updateTruckMarker(LatLng position, String routeId, RouteModel route) {
     // Never use zero coordinates
     if (position.latitude == 0.0 && position.longitude == 0.0) {
       print('Preventing truck marker at zero coordinates');
       position = LatLng(route.startLat, route.startLng);
     }
-    
-    print('Updated truck marker for route $routeId at: ${position.latitude}, ${position.longitude}');
-    
+
+    print(
+      'Updated truck marker for route $routeId at: ${position.latitude}, ${position.longitude}',
+    );
+
     // Calculate rotation angle based on direction of movement
     double rotation = 0.0;
-    
-    // Find current position in the route path
-    int pathIndex = -1;
-    double minDistance = double.infinity;
-    
-    for (int i = 0; i < route.actualDirectionPath.length; i++) {
-      final pathPoint = LatLng(
-        route.actualDirectionPath[i]['lat']!,
-        route.actualDirectionPath[i]['lng']!
-      );
-      
-      final distance = _calculateHaversineDistance(
-        position.latitude,
-        position.longitude,
-        pathPoint.latitude,
-        pathPoint.longitude
-      );
-      
-      if (distance < minDistance) {
-        minDistance = distance;
-        pathIndex = i;
-      }
+
+    // Get the previous position to calculate rotation
+    final previousTruckMarker = _markers.firstWhere(
+      (marker) => marker.markerId.value == 'truck_$routeId',
+      orElse: () => Marker(markerId: MarkerId('dummy')),
+    );
+
+    // Only calculate rotation if we have a previous position
+    if (previousTruckMarker.markerId.value != 'dummy') {
+      rotation = _getBearing(previousTruckMarker.position, position);
     }
-    
-    // Calculate rotation based on previous and next points if possible
-    if (pathIndex > 0 && pathIndex < route.actualDirectionPath.length - 1) {
-      final previousPoint = LatLng(
-        route.actualDirectionPath[pathIndex - 1]['lat']!,
-        route.actualDirectionPath[pathIndex - 1]['lng']!
-      );
-      
-      rotation = _getBearing(previousPoint, position);
-    }
-    
+
     // Only update the truck marker if this is the selected route
     if (_selectedRouteId == routeId) {
       // Remove old truck marker
-      _markers.removeWhere((marker) => marker.markerId.value == 'truck_$routeId');
-      
+      _markers.removeWhere(
+        (marker) => marker.markerId.value == 'truck_$routeId',
+      );
+
       // Add new truck marker
       _markers.add(
         Marker(
@@ -328,89 +371,112 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
           position: position,
           infoWindow: InfoWindow(
             title: 'Truck: ${route.name}',
-            snippet: 'Driver: ${route.driverName ?? "Unknown"}'
+            snippet: 'Driver: ${route.driverName ?? "Unknown"}',
           ),
-          icon: _truckIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          icon:
+              _truckIcon ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           rotation: rotation,
           anchor: const Offset(0.5, 0.5),
           zIndex: 2,
-        )
+        ),
       );
+
+      // Automatically move camera to follow truck if map is zoomed in closely
+      if (_mapController != null && _selectedRouteId != null) {
+        _mapController!.getZoomLevel().then((zoomLevel) {
+          // Only auto-follow if zoom level is high enough (user is tracking the truck)
+          if (zoomLevel > 14) {
+            _mapController!.animateCamera(CameraUpdate.newLatLng(position));
+          }
+        });
+      }
     }
   }
-  
+
   // Check if resident is near any point on the route path
-  bool _isResidentNearRoutePath(LatLng residentLocation, List<Map<String, double>> routePath) {
+  bool _isResidentNearRoutePath(
+    LatLng residentLocation,
+    List<Map<String, double>> routePath,
+  ) {
     for (var pathPoint in routePath) {
       final pointLatLng = LatLng(pathPoint['lat']!, pathPoint['lng']!);
-      
+
       // Calculate distance between resident and this point on the route
       final distance = _calculateHaversineDistance(
         residentLocation.latitude,
         residentLocation.longitude,
         pointLatLng.latitude,
-        pointLatLng.longitude
+        pointLatLng.longitude,
       );
-      
+
       // If resident is within threshold distance of any point on route, return true
       if (distance <= _nearbyThreshold) {
         return true;
       }
     }
-    
+
     return false;
   }
-  
+
   // Calculate distance between resident and route's current position
   double _calculateDistanceToResident(RouteModel route, UserModel resident) {
-    if (resident.latitude == null || resident.longitude == null) return double.infinity;
-    
+    if (resident.latitude == null || resident.longitude == null)
+      return double.infinity;
+
     // Find minimum distance to any point on the route
     double minDistance = double.infinity;
-    
+
     for (var pathPoint in route.actualDirectionPath) {
       final distance = _calculateHaversineDistance(
         resident.latitude!,
         resident.longitude!,
         pathPoint['lat']!,
-        pathPoint['lng']!
+        pathPoint['lng']!,
       );
-      
+
       if (distance < minDistance) {
         minDistance = distance;
       }
     }
-    
+
     return minDistance;
   }
-  
+
   // Haversine formula to calculate distance between two points on Earth
-  double _calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateHaversineDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const double earthRadius = 6371; // in kilometers
-    
+
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
-    
-    double a = 
+
+    double a =
         sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRadians(lat1)) * cos(_toRadians(lat2)) * 
-        sin(dLon / 2) * sin(dLon / 2);
-        
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
     double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     double distance = earthRadius * c;
-    
+
     return distance;
   }
-  
+
   // Convert degrees to radians
   double _toRadians(double degree) {
     return degree * (pi / 180);
   }
-  
+
   void _prepareMapData() {
     _markers.clear();
     _polylines.clear();
-    
+
     // Always add resident's location marker
     if (_currentUser?.latitude != null && _currentUser?.longitude != null) {
       _markers.add(
@@ -418,25 +484,31 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
           markerId: MarkerId('resident'),
           position: LatLng(_currentUser!.latitude!, _currentUser!.longitude!),
           infoWindow: InfoWindow(title: 'Your Location'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        )
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueGreen,
+          ),
+        ),
       );
     }
-    
+
     // If no route is selected, only show resident's location
     if (_selectedRouteId == null) {
       return;
     }
-    
+
     // Find the selected route data
     final selectedRouteData = _nearbyActiveRoutes.firstWhere(
       (data) => (data['route'] as RouteModel).id == _selectedRouteId,
-      orElse: () => _nearbyActiveRoutes.first,
+      orElse:
+          () => _nearbyActiveRoutes.isEmpty ? {} : _nearbyActiveRoutes.first,
     );
-    
+
+    // Make sure we have valid data
+    if (selectedRouteData.isEmpty) return;
+
     final route = selectedRouteData['route'] as RouteModel;
     final currentPosition = selectedRouteData['currentPosition'] as LatLng;
-    
+
     // Add start point marker
     _markers.add(
       Marker(
@@ -444,91 +516,91 @@ class _ResidentActiveRoutesScreenState extends State<ResidentActiveRoutesScreen>
         position: LatLng(route.startLat, route.startLng),
         infoWindow: InfoWindow(title: 'Start: ${route.name}'),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      )
+      ),
     );
-      
-      // Add end point marker
+
+    // Add end point marker
     _markers.add(
       Marker(
         markerId: MarkerId('end_${route.id}'),
         position: LatLng(route.endLat, route.endLng),
         infoWindow: InfoWindow(title: 'End: ${route.name}'),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      )
+      ),
     );
-      
-      // Add truck position marker
-      _updateTruckMarker(currentPosition, route.id, route);
-      
-      // Add route polyline
+
+    // Add truck position marker
+    _updateTruckMarker(currentPosition, route.id, route);
+
+    // Add route polyline
     if (route.actualDirectionPath.isNotEmpty) {
-      List<LatLng> polylinePoints = route.actualDirectionPath
-          .map((point) => LatLng(point['lat']!, point['lng']!))
-          .toList();
-          
+      List<LatLng> polylinePoints =
+          route.actualDirectionPath
+              .map((point) => LatLng(point['lat']!, point['lng']!))
+              .toList();
+
       _polylines.add(
         Polyline(
           polylineId: PolylineId('route_${route.id}'),
           points: polylinePoints,
           color: primaryColor,
           width: 5,
-        )
+        ),
       );
     }
   }
-  
+
   // Select a specific route to display on map
-  // Update the _selectRoute method in ResidentActiveRoutesScreen
-void _selectRoute(String routeId) {
-  // First check if we're selecting a new route or deselecting current route
-  final bool isSelectingNew = _selectedRouteId != routeId;
-  
-  setState(() {
-    // Toggle selection
-    if (_selectedRouteId == routeId) {
-      _selectedRouteId = null;
-      _prepareMapData();
-      _focusOnResidentLocation();
-    } else {
-      _selectedRouteId = routeId;
-      _prepareMapData();
-      
-      // Find current truck position for the selected route
-      try {
-        final routeData = _nearbyActiveRoutes.firstWhere(
-          (data) => (data['route'] as RouteModel).id == routeId,
-        );
-        
-        final truckPosition = routeData['currentPosition'] as LatLng;
-        
-        // Prevent focusing on invalid coordinates
-        if (truckPosition.latitude != 0.0 || truckPosition.longitude != 0.0) {
-          // Use Future.delayed to ensure setState has completed
-          Future.delayed(Duration.zero, () {
-            _mapController?.animateCamera(
-              CameraUpdate.newLatLngZoom(
-                truckPosition,
-                16, // Higher zoom level for truck focus
-              ),
-            );
-          });
-        } else {
-          // Fall back to route overview if truck position is invalid
+  void _selectRoute(String routeId) {
+    // First check if we're selecting a new route or deselecting current route
+    final bool isSelectingNew = _selectedRouteId != routeId;
+
+    setState(() {
+      // Toggle selection
+      if (_selectedRouteId == routeId) {
+        _selectedRouteId = null;
+        _prepareMapData();
+        _focusOnResidentLocation();
+      } else {
+        _selectedRouteId = routeId;
+        _prepareMapData();
+
+        // Find current truck position for the selected route
+        try {
+          final routeData = _nearbyActiveRoutes.firstWhere(
+            (data) => (data['route'] as RouteModel).id == routeId,
+          );
+
+          final truckPosition = routeData['currentPosition'] as LatLng;
+
+          // Prevent focusing on invalid coordinates
+          if (truckPosition.latitude != 0.0 || truckPosition.longitude != 0.0) {
+            // Use Future.delayed to ensure setState has completed
+            Future.delayed(Duration.zero, () {
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLngZoom(
+                  truckPosition,
+                  16, // Higher zoom level for truck focus
+                ),
+              );
+            });
+          } else {
+            // Fall back to route overview if truck position is invalid
+            Future.delayed(Duration.zero, () {
+              _focusOnSelectedRoute();
+            });
+          }
+        } catch (e) {
+          print('Error focusing on truck: $e');
+          // Fall back to route overview
           Future.delayed(Duration.zero, () {
             _focusOnSelectedRoute();
           });
         }
-      } catch (e) {
-        print('Error focusing on truck: $e');
-        // Fall back to route overview
-        Future.delayed(Duration.zero, () {
-          _focusOnSelectedRoute();
-        });
       }
-    }
-  });
-}
-  
+    });
+  }
+
   // Focus map on the selected route
   void _focusOnSelectedRoute() {
     if (_mapController != null && _selectedRouteId != null) {
@@ -537,42 +609,42 @@ void _selectRoute(String routeId) {
         (data) => (data['route'] as RouteModel).id == _selectedRouteId,
         orElse: () => _nearbyActiveRoutes.first,
       );
-      
+
       final route = routeData['route'] as RouteModel;
       final truckPosition = routeData['currentPosition'] as LatLng;
-      
+
       // Calculate bounds that include the truck, start and end points
       List<LatLng> points = [
         truckPosition,
         LatLng(route.startLat, route.startLng),
         LatLng(route.endLat, route.endLng),
       ];
-      
+
       // Also include resident's location
       if (_currentUser?.latitude != null && _currentUser?.longitude != null) {
         points.add(LatLng(_currentUser!.latitude!, _currentUser!.longitude!));
       }
-      
+
       // Get bounds
       double minLat = double.infinity;
       double maxLat = -double.infinity;
       double minLng = double.infinity;
       double maxLng = -double.infinity;
-      
+
       for (var point in points) {
         minLat = min(minLat, point.latitude);
         maxLat = max(maxLat, point.latitude);
         minLng = min(minLng, point.longitude);
         maxLng = max(maxLng, point.longitude);
       }
-      
+
       // Add padding
       final padding = 0.01; // ~1km
       minLat -= padding;
       maxLat += padding;
       minLng -= padding;
       maxLng += padding;
-      
+
       // Move camera to show all points
       _mapController!.animateCamera(
         CameraUpdate.newLatLngBounds(
@@ -585,10 +657,12 @@ void _selectRoute(String routeId) {
       );
     }
   }
-  
+
   // Focus map on resident's location
   void _focusOnResidentLocation() {
-    if (_mapController != null && _currentUser?.latitude != null && _currentUser?.longitude != null) {
+    if (_mapController != null &&
+        _currentUser?.latitude != null &&
+        _currentUser?.longitude != null) {
       _mapController!.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(_currentUser!.latitude!, _currentUser!.longitude!),
@@ -597,7 +671,7 @@ void _selectRoute(String routeId) {
       );
     }
   }
-  
+
   // Get different colors for different routes
   Color _getRouteColor(int index) {
     List<Color> colors = [
@@ -607,14 +681,14 @@ void _selectRoute(String routeId) {
       Colors.orange,
       Colors.teal,
     ];
-    
+
     return colors[index % colors.length];
   }
-  
+
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message))
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -627,44 +701,52 @@ void _selectRoute(String routeId) {
     return DateFormat('h:mm a').format(dt);
   }
 
-  String _formatEstimatedArrival(RouteModel route, double completionPercentage) {
+  String _formatEstimatedArrival(
+    RouteModel route,
+    double completionPercentage,
+  ) {
     // If not started yet or already completed, return N/A
     if (!route.isActive || completionPercentage >= 100) {
       return 'N/A';
     }
-    
+
     // Calculate estimated arrival time based on progress and route schedule
     DateTime now = DateTime.now();
-    
+
     // If completion percentage is 0, use schedule start time
     if (completionPercentage <= 0) {
       return _formatTime(route.scheduleStartTime);
     }
-    
+
     // Calculate remaining percentage
     double remainingPercentage = 100 - completionPercentage;
-    
+
     // Calculate schedule duration in minutes
-    int scheduleDurationMinutes = (route.scheduleEndTime.hour * 60 + route.scheduleEndTime.minute) - 
-                                 (route.scheduleStartTime.hour * 60 + route.scheduleStartTime.minute);
+    int scheduleDurationMinutes =
+        (route.scheduleEndTime.hour * 60 + route.scheduleEndTime.minute) -
+        (route.scheduleStartTime.hour * 60 + route.scheduleStartTime.minute);
     if (scheduleDurationMinutes <= 0) {
-      scheduleDurationMinutes += 24 * 60; // Add 24 hours if end time is next day
+      scheduleDurationMinutes +=
+          24 * 60; // Add 24 hours if end time is next day
     }
-    
+
     // Calculate remaining minutes based on percentage
-    int remainingMinutes = (scheduleDurationMinutes * remainingPercentage / 100).round();
-    
+    int remainingMinutes =
+        (scheduleDurationMinutes * remainingPercentage / 100).round();
+
     // Calculate estimated arrival time
     DateTime estimatedArrival = now.add(Duration(minutes: remainingMinutes));
-    
+
     return DateFormat('h:mm a').format(estimatedArrival);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedRouteId != null ? 'Selected Route' : 'Nearby Active Routes'),
+        title: Text(
+          _selectedRouteId != null ? 'Selected Route' : 'Nearby Active Routes',
+        ),
         backgroundColor: primaryColor,
         actions: [
           // Location focus button
@@ -691,17 +773,18 @@ void _selectRoute(String routeId) {
             icon: Icon(Icons.refresh),
             onPressed: () {
               setState(() => _isLoading = true);
-              _loadUserAndRoutes();
+              _fetchNearbyActiveRoutes();
             },
           ),
         ],
       ),
-      body: _isLoading 
-        ? Center(child: CircularProgressIndicator(color: primaryColor))
-        : _buildContent(),
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: primaryColor))
+              : _buildContent(),
     );
   }
-  
+
   Widget _buildContent() {
     // If user location not set, show message
     if (_currentUser?.latitude == null || _currentUser?.longitude == null) {
@@ -736,7 +819,7 @@ void _selectRoute(String routeId) {
         ),
       );
     }
-    
+
     // If no nearby routes found, show message
     if (_nearbyActiveRoutes.isEmpty) {
       return Center(
@@ -772,7 +855,7 @@ void _selectRoute(String routeId) {
         ),
       );
     }
-    
+
     // Show map and route list
     return Column(
       children: [
@@ -781,9 +864,14 @@ void _selectRoute(String routeId) {
           flex: 1,
           child: GoogleMap(
             initialCameraPosition: CameraPosition(
-              target: _currentUser?.latitude != null && _currentUser?.longitude != null
-                ? LatLng(_currentUser!.latitude!, _currentUser!.longitude!)
-                : _defaultPosition,
+              target:
+                  _currentUser?.latitude != null &&
+                          _currentUser?.longitude != null
+                      ? LatLng(
+                        _currentUser!.latitude!,
+                        _currentUser!.longitude!,
+                      )
+                      : _defaultPosition,
               zoom: 14,
             ),
             markers: _markers,
@@ -795,11 +883,12 @@ void _selectRoute(String routeId) {
             zoomControlsEnabled: true,
             onMapCreated: (controller) {
               _mapController = controller;
-              
+
               // Focus on resident's location or selected route if any
               if (_selectedRouteId != null) {
                 _focusOnSelectedRoute();
-              } else if (_currentUser?.latitude != null && _currentUser?.longitude != null) {
+              } else if (_currentUser?.latitude != null &&
+                  _currentUser?.longitude != null) {
                 controller.animateCamera(
                   CameraUpdate.newLatLngZoom(
                     LatLng(_currentUser!.latitude!, _currentUser!.longitude!),
@@ -810,7 +899,7 @@ void _selectRoute(String routeId) {
             },
           ),
         ),
-        // Route list 
+        // Route list
         Expanded(
           flex: 1,
           child: Container(
@@ -821,10 +910,18 @@ void _selectRoute(String routeId) {
               itemBuilder: (context, index) {
                 final routeData = _nearbyActiveRoutes[index];
                 final route = routeData['route'] as RouteModel;
-                final completionPercentage = routeData['completionPercentage'] as double;
-                final distanceToResident = routeData['distanceToResident'] as double;
-                
-                return _buildRouteCard(route, completionPercentage, distanceToResident, index, routeData);
+                final completionPercentage =
+                    routeData['completionPercentage'] as double;
+                final distanceToResident =
+                    routeData['distanceToResident'] as double;
+
+                return _buildRouteCard(
+                  route,
+                  completionPercentage,
+                  distanceToResident,
+                  index,
+                  routeData,
+                );
               },
             ),
           ),
@@ -832,261 +929,286 @@ void _selectRoute(String routeId) {
       ],
     );
   }
-  
-  Widget _buildRouteCard(RouteModel route, double completionPercentage, double distanceToResident, int index, Map<String, dynamic> routeData) {
-  // Get waste category info
-  Color categoryColor = route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
-  String categoryText = route.wasteCategory.toUpperCase();
-  
-  // Check if this route is currently selected
-  bool isSelected = _selectedRouteId == route.id;
-  
-  return Card(
-    margin: EdgeInsets.fromLTRB(16, index == 0 ? 16 : 8, 16, 8),
-    elevation: isSelected ? 6 : 3,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-      side: isSelected 
-        ? BorderSide(color: primaryColor, width: 2) 
-        : BorderSide.none,
-    ),
-    child: InkWell(
-      onTap: () {
-        _selectRoute(route.id);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Waste category icon
-                Container(
-                  padding: EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isSelected 
-                      ? primaryColor.withOpacity(0.2) 
-                      : categoryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    route.wasteCategory == 'organic' ? Icons.eco : Icons.delete,
-                    color: isSelected ? primaryColor : categoryColor,
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        route.name,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected ? primaryColor : Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        route.description,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                // Selected indicator
-                if (isSelected)
+
+  Widget _buildRouteCard(
+    RouteModel route,
+    double completionPercentage,
+    double distanceToResident,
+    int index,
+    Map<String, dynamic> routeData,
+  ) {
+    // Get waste category info
+    Color categoryColor =
+        route.wasteCategory == 'organic' ? Colors.brown : Colors.blue;
+    String categoryText = route.wasteCategory.toUpperCase();
+
+    // Check if this route is currently selected
+    bool isSelected = _selectedRouteId == route.id;
+
+    return Card(
+      margin: EdgeInsets.fromLTRB(16, index == 0 ? 16 : 8, 16, 8),
+      elevation: isSelected ? 6 : 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side:
+            isSelected
+                ? BorderSide(color: primaryColor, width: 2)
+                : BorderSide.none,
+      ),
+      child: InkWell(
+        onTap: () {
+          _selectRoute(route.id);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Waste category icon
                   Container(
-                    padding: EdgeInsets.all(4),
+                    padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: primaryColor,
+                      color:
+                          isSelected
+                              ? primaryColor.withOpacity(0.2)
+                              : categoryColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
+                      route.wasteCategory == 'organic'
+                          ? Icons.eco
+                          : Icons.delete,
+                      color: isSelected ? primaryColor : categoryColor,
+                      size: 24,
                     ),
                   ),
-              ],
-            ),
-            SizedBox(height: 16),
-            
-            // Route details
-            Row(
-              children: [
-                _buildDetailItem(Icons.category, categoryText, isSelected ? primaryColor : categoryColor),
-                SizedBox(width: 16),
-                _buildDetailItem(
-                  Icons.location_on, 
-                  '${distanceToResident.toStringAsFixed(2)} km away',
-                  isSelected ? primaryColor : Colors.red[700]!
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                _buildDetailItem(
-                  Icons.person, 
-                  'Driver: ${route.driverName ?? "Not assigned"}',
-                  isSelected ? primaryColor : Colors.grey[700]!
-                ),
-              ],
-            ),
-            if (route.driverContact != null) SizedBox(height: 8),
-            if (route.driverContact != null)
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          route.name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? primaryColor : Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          route.description,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Selected indicator
+                  if (isSelected)
+                    Container(
+                      padding: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.check, color: Colors.white, size: 16),
+                    ),
+                ],
+              ),
+              SizedBox(height: 16),
+
+              // Route details
               Row(
                 children: [
                   _buildDetailItem(
-                    Icons.phone, 
-                    route.driverContact!,
-                    isSelected ? primaryColor : Colors.grey[700]!
+                    Icons.category,
+                    categoryText,
+                    isSelected ? primaryColor : categoryColor,
+                  ),
+                  SizedBox(width: 16),
+                  _buildDetailItem(
+                    Icons.location_on,
+                    '${distanceToResident.toStringAsFixed(2)} km away',
+                    isSelected ? primaryColor : Colors.red[700]!,
                   ),
                 ],
               ),
-            
-            // Estimated arrival time
-            SizedBox(height: 8),
-            Row(
-              children: [
-                _buildDetailItem(
-                  Icons.access_time, 
-                  'Est. Arrival: ${_formatEstimatedArrival(route, completionPercentage)}',
-                  isSelected ? primaryColor : Colors.green[700]!
-                ),
-              ],
-            ),
-            
-            SizedBox(height: 16),
-            // Progress bar
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ROUTE PROGRESS: ${completionPercentage.toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isSelected ? primaryColor : Colors.grey[800],
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildDetailItem(
+                    Icons.person,
+                    'Driver: ${route.driverName ?? "Not assigned"}',
+                    isSelected ? primaryColor : Colors.grey[700]!,
                   ),
-                ),
-                SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: completionPercentage / 100,
-                    backgroundColor: Colors.grey[200],
-                    color: isSelected ? primaryColor : _getRouteColor(index),
-                    minHeight: 8,
-                  ),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: 16),
-            Row(
-              children: [
-                // View route button 
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(isSelected ? Icons.visibility_off : Icons.visibility),
-                    label: Text(isSelected ? 'HIDE ROUTE' : 'VIEW DETAILS'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSelected ? Colors.grey[300] : _getRouteColor(index),
-                      foregroundColor: isSelected ? Colors.black87 : Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                ],
+              ),
+              if (route.driverContact != null) SizedBox(height: 8),
+              if (route.driverContact != null)
+                Row(
+                  children: [
+                    _buildDetailItem(
+                      Icons.phone,
+                      route.driverContact!,
+                      isSelected ? primaryColor : Colors.grey[700]!,
                     ),
-                    onPressed: () {
-                      if (isSelected) {
-                        // If already selected, deselect it
-                        _selectRoute(route.id);
-                      } else {
-                        // If not selected, navigate to route details screen
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RouteDetailsScreen(routeId: route.id),
-                          ),
-                        );
-                      }
-                    },
-                  ),
+                  ],
                 ),
-                SizedBox(width: 8),
-                // Track truck button
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: primaryColor),
+
+              // Estimated arrival time
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildDetailItem(
+                    Icons.access_time,
+                    'Est. Arrival: ${_formatEstimatedArrival(route, completionPercentage)}',
+                    isSelected ? primaryColor : Colors.green[700]!,
                   ),
-                  child: IconButton(
-                    icon: Icon(Icons.my_location, color: primaryColor),
-                    tooltip: 'Track Truck',
-                    onPressed: () {
-                      // Focus map on truck's current position
-                      if (_mapController != null) {
-                        LatLng truckPosition = routeData['currentPosition'] as LatLng;
-                        
-                        // First select this route
-                        if (_selectedRouteId != route.id) {
+                ],
+              ),
+
+              SizedBox(height: 16),
+              // Progress bar
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ROUTE PROGRESS: ${completionPercentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? primaryColor : Colors.grey[800],
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: completionPercentage / 100,
+                      backgroundColor: Colors.grey[200],
+                      color: isSelected ? primaryColor : _getRouteColor(index),
+                      minHeight: 8,
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  // View route button
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: Icon(
+                        isSelected ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      label: Text(isSelected ? 'HIDE ROUTE' : 'VIEW DETAILS'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            isSelected
+                                ? Colors.grey[300]
+                                : _getRouteColor(index),
+                        foregroundColor:
+                            isSelected ? Colors.black87 : Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (isSelected) {
+                          // If already selected, deselect it
                           _selectRoute(route.id);
+                        } else {
+                          // If not selected, navigate to route details screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      RouteDetailsScreen(routeId: route.id),
+                            ),
+                          );
                         }
-                        
-                        // Then zoom to truck position
-                        _mapController!.animateCamera(
-                          CameraUpdate.newLatLngZoom(truckPosition, 16),
-                        );
-                      }
-                    },
+                      },
+                    ),
                   ),
-                ),
-                SizedBox(width: 8),
-                // Call driver button (if driver contact is available)
-                if (route.driverContact != null)
+                  SizedBox(width: 8),
+                  // Track truck button
                   Container(
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green),
+                      border: Border.all(color: primaryColor),
                     ),
                     child: IconButton(
-                      icon: Icon(Icons.phone, color: Colors.green),
-                      tooltip: 'Call Driver',
+                      icon: Icon(Icons.my_location, color: primaryColor),
+                      tooltip: 'Track Truck',
                       onPressed: () {
-                        // Implement call functionality here
-                        // This would typically use url_launcher package
-                        _showSnackBar('Calling driver: ${route.driverContact}');
+                        // Focus map on truck's current position
+                        if (_mapController != null) {
+                          LatLng truckPosition =
+                              routeData['currentPosition'] as LatLng;
+
+                          // First select this route
+                          if (_selectedRouteId != route.id) {
+                            _selectRoute(route.id);
+                          }
+
+                          // Then zoom to truck position
+                          _mapController!.animateCamera(
+                            CameraUpdate.newLatLngZoom(truckPosition, 16),
+                          );
+                        }
                       },
                     ),
                   ),
-              ],
-            ),
-          ],
+                  SizedBox(width: 8),
+                  // Call driver button (if driver contact is available)
+                  if (route.driverContact != null)
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.phone, color: Colors.green),
+                        tooltip: 'Call Driver',
+                        onPressed: () {
+                          // Implement call functionality here
+                          // This would typically use url_launcher package
+                          _showSnackBar(
+                            'Calling driver: ${route.driverContact}',
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
-  
+    );
+  }
+
   Widget _buildDetailItem(IconData icon, String text, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
