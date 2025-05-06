@@ -33,6 +33,11 @@ class _SpecialGarbageRequestDetailsScreenState
   bool _isLoading = true;
   String _errorMessage = '';
 
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  List<SpecialGarbageRequestModel> _allRequests = [];
+  List<SpecialGarbageRequestModel> _filteredRequests = [];
+
   // Feedback form values
   bool _confirmCollection = true;
   final TextEditingController _feedbackController = TextEditingController();
@@ -47,12 +52,33 @@ class _SpecialGarbageRequestDetailsScreenState
     _currentRequest = widget.request;
     _loadUserData();
     _setupRequestStream();
+    _searchController.addListener(_filterRequests);
   }
 
   @override
   void dispose() {
     _feedbackController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _filterRequests() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredRequests = List.from(_allRequests);
+      } else {
+        _filteredRequests =
+            _allRequests.where((request) {
+              return request.garbageType.toLowerCase().contains(query) ||
+                  request.description.toLowerCase().contains(query) ||
+                  request.location.toLowerCase().contains(query) ||
+                  request.status.toLowerCase().contains(query) ||
+                  (request.assignedDriverName?.toLowerCase().contains(query) ??
+                      false);
+            }).toList();
+      }
+    });
   }
 
   void _setupRequestStream() {
@@ -71,6 +97,15 @@ class _SpecialGarbageRequestDetailsScreenState
       setState(() {
         _currentUser = user;
       });
+
+      // Get all requests for this resident for search feature
+      if (user != null) {
+        final requests = await _requestService.getResidentRequests(user.uid);
+        setState(() {
+          _allRequests = requests;
+          _filteredRequests = List.from(requests);
+        });
+      }
 
       // Refresh request data
       final updatedRequest = await _requestService.getRequestById(
@@ -596,11 +631,12 @@ class _SpecialGarbageRequestDetailsScreenState
     );
   }
 
-  // New method to handle both base64 and network images
   Future<Uint8List?> _getImageBytes(String imageUrl) async {
     try {
-      print('Loading image from: ${imageUrl.substring(0, min(50, imageUrl.length))}...');
-      
+      print(
+        'Loading image from: ${imageUrl.substring(0, min(50, imageUrl.length))}...',
+      );
+
       if (imageUrl.startsWith('http')) {
         // Handle network images
         try {
@@ -623,24 +659,24 @@ class _SpecialGarbageRequestDetailsScreenState
           if (imageUrl.contains(',')) {
             sanitized = imageUrl.split(',')[1];
           }
-          
+
           // Try to decode directly first
           try {
             return base64Decode(sanitized);
           } catch (e) {
             print('Initial base64 decode failed: $e');
-            
+
             // Try with padding
             while (sanitized.length % 4 != 0) {
               sanitized += '=';
             }
-            
+
             // Try decoding again
             try {
               return base64Decode(sanitized);
             } catch (e) {
               print('Base64 decode with padding failed: $e');
-              
+
               // One more attempt with URL-safe characters replaced
               sanitized = sanitized.replaceAll('-', '+').replaceAll('_', '/');
               while (sanitized.length % 4 != 0) {
@@ -660,212 +696,512 @@ class _SpecialGarbageRequestDetailsScreenState
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Request Details'), elevation: 0),
-      body:
-          _isLoading && _currentRequest == null
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage.isNotEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+  Widget _buildRequestCard(SpecialGarbageRequestModel request) {
+    final DateFormat formatter = DateFormat('MMM d, yyyy • h:mm a');
+    final String formattedDate = formatter.format(request.requestedTime);
+    final statusColor = _getStatusColor(request.status);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: () {
+          // Update the current request and reload data
+          setState(() {
+            _currentRequest = request;
+          });
+          _setupRequestStream();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with type
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      request.garbageType,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadUserData,
-                      child: const Text('Retry'),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
                     ),
-                  ],
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: statusColor),
+                    ),
+                    child: Text(
+                      request.status.toUpperCase(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Request details
+              Text(
+                'Requested: $formattedDate',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+
+              const SizedBox(height: 6),
+
+              // Location with icon
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      request.location,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Assigned to
+              if (request.assignedDriverName != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Assigned to: ${request.assignedDriverName}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
                 ),
-              )
-              : StreamBuilder<SpecialGarbageRequestModel?>(
-                stream: _requestStream,
-                initialData: _currentRequest,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting &&
-                      !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
 
-                  final request = snapshot.data ?? _currentRequest!;
+              const SizedBox(height: 12.0),
 
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header with status
-                        Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+              // Progress bar with segments
+              Row(
+                children: [
+                  // Pending segment
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _getStatusColor('pending'),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(2),
+                          bottomLeft: Radius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Assigned segment
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color:
+                            [
+                                  'assigned',
+                                  'collected',
+                                  'completed',
+                                ].contains(request.status.toLowerCase())
+                                ? _getStatusColor('assigned')
+                                : Colors.grey[300],
+                      ),
+                    ),
+                  ),
+
+                  // Collected segment
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color:
+                            [
+                                  'collected',
+                                  'completed',
+                                ].contains(request.status.toLowerCase())
+                                ? _getStatusColor('collected')
+                                : Colors.grey[300],
+                      ),
+                    ),
+                  ),
+
+                  // Completed segment
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color:
+                            request.status.toLowerCase() == 'completed'
+                                ? _getStatusColor('completed')
+                                : Colors.grey[300],
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(2),
+                          bottomRight: Radius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Status labels
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Requested',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color:
+                          request.status.toLowerCase() == 'pending'
+                              ? statusColor
+                              : Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    'Assigned',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color:
+                          request.status.toLowerCase() == 'assigned'
+                              ? statusColor
+                              : Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    'Collected',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color:
+                          request.status.toLowerCase() == 'collected'
+                              ? statusColor
+                              : Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    'Completed',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color:
+                          request.status.toLowerCase() == 'completed'
+                              ? statusColor
+                              : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return _filteredRequests.isEmpty
+        ? const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'No matching requests found',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ],
+          ),
+        )
+        : ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          itemCount: _filteredRequests.length,
+          itemBuilder: (context, index) {
+            return _buildRequestCard(_filteredRequests[index]);
+          },
+        );
+  }
+
+  Widget _buildRequestDetailsView() {
+    return StreamBuilder<SpecialGarbageRequestModel?>(
+      stream: _requestStream,
+      initialData: _currentRequest,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final request = snapshot.data ?? _currentRequest!;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with status
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Current Status',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
-                          elevation: 4,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Current Status',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    _buildStatusBadge(request.status),
-                                  ],
-                                ),
+                          _buildStatusBadge(request.status),
+                        ],
+                      ),
 
-                                if (request.status.toLowerCase() ==
-                                        'collected' &&
-                                    _currentUser?.role == 'resident' &&
-                                    !(request.residentConfirmed ?? false))
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 16.0),
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.blue),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.info_outline,
-                                            color: Colors.blue,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Expanded(
-                                            child: Text(
-                                              'Please confirm if the garbage was collected and rate the service below.',
-                                              style: TextStyle(
-                                                color: Colors.blue,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                      if (request.status.toLowerCase() == 'collected' &&
+                          _currentUser?.role == 'resident' &&
+                          !(request.residentConfirmed ?? false))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.info_outline,
+                                  color: Colors.blue,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Please confirm if the garbage was collected and rate the service below.',
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                ),
                               ],
                             ),
                           ),
                         ),
+                    ],
+                  ),
+                ),
+              ),
 
-                        const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                        // Timeline of status updates
-                        _buildStatusTimeline(request),
+              // Timeline of status updates
+              _buildStatusTimeline(request),
 
-                        const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                        // Request details
-                        _buildRequestDetails(request),
+              // Request details
+              _buildRequestDetails(request),
 
-                        const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                        // Updated image display section with robust image loading
-                        if (request.imageUrl != null && request.imageUrl!.isNotEmpty) ...[
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              'Garbage Image',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+              // Updated image display section with robust image loading
+              if (request.imageUrl != null && request.imageUrl!.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'Garbage Image',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: FutureBuilder<Uint8List?>(
+                      future: _getImageBytes(request.imageUrl!),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: SizedBox(
+                              height: 200,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                          );
+                        }
+
+                        if (snapshot.hasError ||
+                            !snapshot.hasData ||
+                            snapshot.data == null ||
+                            snapshot.data!.isEmpty) {
+                          return SizedBox(
+                            height: 200,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.broken_image,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Failed to load image: ${snapshot.error != null ? snapshot.error.toString() : "Unknown error"}',
+                                    style: const TextStyle(color: Colors.grey),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
+                          );
+                        }
+
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            snapshot.data!,
+                            fit: BoxFit.cover,
+                            height: 200,
+                            width: double.infinity,
                           ),
-                          Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: FutureBuilder<Uint8List?>(
-                                future: _getImageBytes(request.imageUrl!),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Center(
-                                      child: SizedBox(
-                                        height: 200,
-                                        child: Center(
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  
-                                  if (snapshot.hasError || !snapshot.hasData || snapshot.data == null || snapshot.data!.isEmpty) {
-                                    return SizedBox(
-                                      height: 200,
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              'Failed to load image: ${snapshot.error != null ? snapshot.error.toString() : "Unknown error"}',
-                                              style: const TextStyle(color: Colors.grey),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.memory(
-                                      snapshot.data!,
-                                      fit: BoxFit.cover,
-                                      height: 200,
-                                      width: double.infinity,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // Display feedback form if user is resident and status is collected but not confirmed
+              if (_currentUser?.role == 'resident' &&
+                  request.status.toLowerCase() == 'collected' &&
+                  !(request.residentConfirmed ?? false))
+                _buildFeedbackForm(),
+
+              // If already confirmed, show the feedback provided
+              if (_currentUser?.role == 'resident' &&
+                  request.status.toLowerCase() == 'completed' &&
+                  (request.residentConfirmed ?? false))
+                _buildCompletedFeedback(request),
+
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Request Details'),
+        elevation: 0,
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadUserData),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by type, description or status...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+              ),
+            ),
+          ),
+
+          // Main content
+          Expanded(
+            child:
+                _isLoading && _currentRequest == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage.isNotEmpty
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _errorMessage,
+                            style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadUserData,
+                            child: const Text('Retry'),
                           ),
                         ],
-
-                        const SizedBox(height: 16),
-
-                        // Display feedback form if user is resident and status is collected but not confirmed
-                        if (_currentUser?.role == 'resident' &&
-                            request.status.toLowerCase() == 'collected' &&
-                            !(request.residentConfirmed ?? false))
-                          _buildFeedbackForm(),
-
-                        // If already confirmed, show the feedback provided
-                        if (_currentUser?.role == 'resident' &&
-                            request.status.toLowerCase() == 'completed' &&
-                            (request.residentConfirmed ?? false))
-                          _buildCompletedFeedback(request),
-
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      ),
+                    )
+                    : _searchController.text.isNotEmpty
+                    ? _buildSearchResults()
+                    : _buildRequestDetailsView(),
+          ),
+        ],
+      ),
     );
   }
 }

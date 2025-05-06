@@ -21,11 +21,15 @@ class _DriverSpecialGarbageScreenState
       SpecialGarbageRequestService();
   final AuthService _authService = AuthService();
   List<SpecialGarbageRequestModel> _allRequests = [];
+  List<SpecialGarbageRequestModel> _filteredRequests = [];
   bool _isLoading = true;
   String _driverId = '';
   String _selectedFilter =
       'Completed'; // Changed to show Completed requests by default
   final List<String> _filterOptions = ['All', 'Assigned', 'Completed'];
+
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
 
   // Stream subscription for real-time updates
   Stream<List<SpecialGarbageRequestModel>>? _requestsStream;
@@ -34,6 +38,32 @@ class _DriverSpecialGarbageScreenState
   void initState() {
     super.initState();
     _getCurrentDriverId();
+    _searchController.addListener(_filterRequests);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterRequests() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredRequests = List.from(_getFilteredRequests());
+      } else {
+        _filteredRequests =
+            _allRequests.where((request) {
+              return request.garbageType.toLowerCase().contains(query) ||
+                  request.description.toLowerCase().contains(query) ||
+                  request.location.toLowerCase().contains(query) ||
+                  request.status.toLowerCase().contains(query) ||
+                  (request.assignedDriverName?.toLowerCase().contains(query) ??
+                      false);
+            }).toList();
+      }
+    });
   }
 
   Future<void> _getCurrentDriverId() async {
@@ -85,6 +115,7 @@ class _DriverSpecialGarbageScreenState
 
       setState(() {
         _allRequests = allRequests;
+        _filteredRequests = _getFilteredRequests();
         _isLoading = false;
       });
     } catch (e) {
@@ -100,7 +131,9 @@ class _DriverSpecialGarbageScreenState
   }
 
   List<SpecialGarbageRequestModel> _getFilteredRequests() {
-    if (_selectedFilter == 'All') {
+    if (_searchController.text.isNotEmpty) {
+      return _filteredRequests;
+    } else if (_selectedFilter == 'All') {
       // Exclude "Collected" requests
       return _allRequests
           .where((request) => request.status.toLowerCase() != 'collected')
@@ -166,43 +199,64 @@ class _DriverSpecialGarbageScreenState
       ),
       body: Column(
         children: [
-          // Filter chips
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            color: Colors.grey[100],
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children:
-                    _filterOptions.map((filter) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(filter),
-                          selected: _selectedFilter == filter,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                _selectedFilter = filter;
-                              });
-                            }
-                          },
-                          selectedColor: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.2),
-                          labelStyle: TextStyle(
-                            color:
-                                _selectedFilter == filter
-                                    ? Theme.of(context).primaryColor
-                                    : Colors.black,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by type, description or status...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
               ),
             ),
           ),
+
+          // Filter chips (only show when not searching)
+          if (_searchController.text.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              color: Colors.grey[100],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children:
+                      _filterOptions.map((filter) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(filter),
+                            selected: _selectedFilter == filter,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _selectedFilter = filter;
+                                  _filterRequests();
+                                });
+                              }
+                            },
+                            selectedColor: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.2),
+                            labelStyle: TextStyle(
+                              color:
+                                  _selectedFilter == filter
+                                      ? Theme.of(context).primaryColor
+                                      : Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                ),
+              ),
+            ),
 
           // Main content
           Expanded(
@@ -225,9 +279,12 @@ class _DriverSpecialGarbageScreenState
   }
 
   Widget _buildRequestsList() {
-    final filteredRequests = _getFilteredRequests();
+    final displayedRequests =
+        _searchController.text.isNotEmpty
+            ? _filteredRequests
+            : _getFilteredRequests();
 
-    return filteredRequests.isEmpty
+    return displayedRequests.isEmpty
         ? Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -235,7 +292,9 @@ class _DriverSpecialGarbageScreenState
               Icon(Icons.recycling_outlined, size: 80, color: Colors.grey[400]),
               const SizedBox(height: 16),
               Text(
-                'No ${_selectedFilter.toLowerCase()} requests',
+                _searchController.text.isNotEmpty
+                    ? 'No matching requests found'
+                    : 'No ${_selectedFilter.toLowerCase()} requests',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -249,9 +308,9 @@ class _DriverSpecialGarbageScreenState
           onRefresh: _loadHistoricalRequests,
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: filteredRequests.length,
+            itemCount: displayedRequests.length,
             itemBuilder: (context, index) {
-              return _buildRequestCard(filteredRequests[index]);
+              return _buildRequestCard(displayedRequests[index]);
             },
           ),
         );

@@ -12,17 +12,25 @@ class SpecialGarbageRequestsScreen extends StatefulWidget {
   const SpecialGarbageRequestsScreen({Key? key}) : super(key: key);
 
   @override
-  _SpecialGarbageRequestsScreenState createState() => _SpecialGarbageRequestsScreenState();
+  _SpecialGarbageRequestsScreenState createState() =>
+      _SpecialGarbageRequestsScreenState();
 }
 
-class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScreen> {
-  final SpecialGarbageRequestService _requestService = SpecialGarbageRequestService();
+class _SpecialGarbageRequestsScreenState
+    extends State<SpecialGarbageRequestsScreen> {
+  final SpecialGarbageRequestService _requestService =
+      SpecialGarbageRequestService();
   final AuthService _authService = AuthService();
   UserModel? _currentUser;
   List<SpecialGarbageRequestModel> _requests = [];
+  List<SpecialGarbageRequestModel> _filteredRequests =
+      []; // Add filtered requests list
   bool _isLoading = true;
   String _errorMessage = '';
-  
+
+  // Add search controller
+  final TextEditingController _searchController = TextEditingController();
+
   // Add streams for real-time updates
   Stream<List<SpecialGarbageRequestModel>>? _requestsStream;
 
@@ -30,10 +38,12 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
   void initState() {
     super.initState();
     _loadUserAndRequests();
+    _searchController.addListener(_filterRequests);
   }
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -72,7 +82,9 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
         });
       } else if (user.role == 'driver') {
         // Driver sees assigned requests
-        final requests = await _requestService.getDriverAssignedRequests(user.uid);
+        final requests = await _requestService.getDriverAssignedRequests(
+          user.uid,
+        );
         setState(() {
           _requests = requests;
         });
@@ -94,6 +106,27 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
     }
   }
 
+  void _filterRequests() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (_currentUser?.role == 'resident' && _requestsStream != null) {
+        // Will filter in the StreamBuilder
+      } else if (query.isEmpty) {
+        _filteredRequests = List.from(_requests);
+      } else {
+        _filteredRequests =
+            _requests.where((request) {
+              return request.garbageType.toLowerCase().contains(query) ||
+                  request.description.toLowerCase().contains(query) ||
+                  request.location.toLowerCase().contains(query) ||
+                  request.status.toLowerCase().contains(query) ||
+                  (request.assignedDriverName?.toLowerCase().contains(query) ??
+                      false);
+            }).toList();
+      }
+    });
+  }
+
   void _navigateToRequestForm() {
     Navigator.push(
       context,
@@ -110,7 +143,8 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SpecialGarbageRequestDetailsScreen(request: request),
+        builder:
+            (context) => SpecialGarbageRequestDetailsScreen(request: request),
       ),
     ).then((_) {
       // Refresh data when returning from details
@@ -172,9 +206,10 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
 
   Widget _buildRequestCard(SpecialGarbageRequestModel request) {
     final dateFormat = DateFormat('MMM d, yyyy • h:mm a');
-    final requestDate = request.requestedTime != null 
-        ? dateFormat.format(request.requestedTime!) 
-        : 'Unknown date';
+    final requestDate =
+        request.requestedTime != null
+            ? dateFormat.format(request.requestedTime!)
+            : 'Unknown date';
 
     // Get timeline progress based on status
     double timelineProgress = 0.0;
@@ -196,9 +231,7 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () => _navigateToRequestDetails(request),
         borderRadius: BorderRadius.circular(12),
@@ -227,10 +260,7 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
               const SizedBox(height: 8),
               Text(
                 'Requested: $requestDate',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 8),
               Text(
@@ -247,17 +277,15 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
                   Expanded(
                     child: Text(
                       request.location,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              if (_currentUser?.role == 'resident' && request.assignedDriverName != null)
+              if (_currentUser?.role == 'resident' &&
+                  request.assignedDriverName != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Row(
@@ -266,15 +294,13 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
                       const SizedBox(width: 4),
                       Text(
                         'Assigned to: ${request.assignedDriverName}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
                     ],
                   ),
                 ),
-              if (_currentUser?.role == 'admin' || _currentUser?.role == 'driver')
+              if (_currentUser?.role == 'admin' ||
+                  _currentUser?.role == 'driver')
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Row(
@@ -283,10 +309,7 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
                       const SizedBox(width: 4),
                       Text(
                         'Requested by: ${request.residentName}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
                     ],
                   ),
@@ -300,10 +323,10 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
                   _getStatusColor(request.status) == 'orange'
                       ? Colors.orange
                       : _getStatusColor(request.status) == 'blue'
-                          ? Colors.blue
-                          : _getStatusColor(request.status) == 'green'
-                              ? Colors.green
-                              : Colors.purple,
+                      ? Colors.blue
+                      : _getStatusColor(request.status) == 'green'
+                      ? Colors.green
+                      : Colors.purple,
                 ),
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(3),
@@ -316,42 +339,48 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
                     'Requested',
                     style: TextStyle(
                       fontSize: 10,
-                      color: timelineProgress >= 0.25 
-                          ? Colors.black 
-                          : Colors.grey[400],
+                      color:
+                          timelineProgress >= 0.25
+                              ? Colors.black
+                              : Colors.grey[400],
                     ),
                   ),
                   Text(
                     'Assigned',
                     style: TextStyle(
                       fontSize: 10,
-                      color: timelineProgress >= 0.5 
-                          ? Colors.black 
-                          : Colors.grey[400],
+                      color:
+                          timelineProgress >= 0.5
+                              ? Colors.black
+                              : Colors.grey[400],
                     ),
                   ),
                   Text(
                     'Collected',
                     style: TextStyle(
                       fontSize: 10,
-                      color: timelineProgress >= 0.75 
-                          ? Colors.black 
-                          : Colors.grey[400],
+                      color:
+                          timelineProgress >= 0.75
+                              ? Colors.black
+                              : Colors.grey[400],
                     ),
                   ),
                   Text(
                     'Completed',
                     style: TextStyle(
                       fontSize: 10,
-                      color: timelineProgress >= 1.0 
-                          ? Colors.black 
-                          : Colors.grey[400],
+                      color:
+                          timelineProgress >= 1.0
+                              ? Colors.black
+                              : Colors.grey[400],
                     ),
                   ),
                 ],
               ),
               // Add action button based on status and role
-              if (_currentUser?.role == 'resident' && request.status.toLowerCase() == 'collected' && !(request.residentConfirmed ?? false))
+              if (_currentUser?.role == 'resident' &&
+                  request.status.toLowerCase() == 'collected' &&
+                  !(request.residentConfirmed ?? false))
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: ElevatedButton(
@@ -390,92 +419,225 @@ class _SpecialGarbageRequestsScreenState extends State<SpecialGarbageRequestsScr
             ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage.isNotEmpty
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage.isNotEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _errorMessage,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadUserAndRequests,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadUserAndRequests,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
               : _currentUser?.role == 'resident' && _requestsStream != null
-                  ? StreamBuilder<List<SpecialGarbageRequestModel>>(
-                      stream: _requestsStream,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting && _requests.isEmpty) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        
-                        final streamRequests = snapshot.data ?? _requests;
-                        
-                        if (streamRequests.isEmpty) {
-                          return _buildEmptyRequestsView();
-                        }
-                        
-                        return RefreshIndicator(
-                          onRefresh: _loadUserAndRequests,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: streamRequests.length,
-                            itemBuilder: (context, index) {
-                              return _buildRequestCard(streamRequests[index]);
-                            },
-                          ),
-                        );
-                      },
-                    )
-                  : _requests.isEmpty
-                      ? _buildEmptyRequestsView()
-                      : RefreshIndicator(
-                          onRefresh: _loadUserAndRequests,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _requests.length,
-                            itemBuilder: (context, index) {
-                              return _buildRequestCard(_requests[index]);
-                            },
+              ? StreamBuilder<List<SpecialGarbageRequestModel>>(
+                stream: _requestsStream,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      _requests.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final streamRequests = snapshot.data ?? _requests;
+
+                  // Filter the requests based on search query
+                  final query = _searchController.text.toLowerCase();
+                  final filteredStreamRequests =
+                      query.isEmpty
+                          ? streamRequests
+                          : streamRequests.where((request) {
+                            return request.garbageType.toLowerCase().contains(
+                                  query,
+                                ) ||
+                                request.description.toLowerCase().contains(
+                                  query,
+                                ) ||
+                                request.location.toLowerCase().contains(
+                                  query,
+                                ) ||
+                                request.status.toLowerCase().contains(query) ||
+                                (request.assignedDriverName
+                                        ?.toLowerCase()
+                                        .contains(query) ??
+                                    false);
+                          }).toList();
+
+                  if (streamRequests.isEmpty) {
+                    return _buildEmptyRequestsView();
+                  }
+
+                  return Column(
+                    children: [
+                      // Search bar
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Search by type, description or status...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[200],
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8.0,
+                            ),
                           ),
                         ),
-      floatingActionButton: (_currentUser == null || _currentUser!.role == 'resident')
-          ? FloatingActionButton(
-              onPressed: _navigateToRequestForm,
-              backgroundColor: Colors.green,
-              tooltip: 'Create Request',
-              child: const Icon(Icons.add),
-            )
-          : null,
+                      ),
+
+                      // Results
+                      Expanded(
+                        child:
+                            filteredStreamRequests.isEmpty
+                                ? const Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.search_off,
+                                        size: 64,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'No matching requests found',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                                : RefreshIndicator(
+                                  onRefresh: _loadUserAndRequests,
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    itemCount: filteredStreamRequests.length,
+                                    itemBuilder: (context, index) {
+                                      return _buildRequestCard(
+                                        filteredStreamRequests[index],
+                                      );
+                                    },
+                                  ),
+                                ),
+                      ),
+                    ],
+                  );
+                },
+              )
+              : _requests.isEmpty
+              ? _buildEmptyRequestsView()
+              : Column(
+                children: [
+                  // Search bar
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by type, description or status...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 8.0,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Results
+                  Expanded(
+                    child:
+                        _filteredRequests.isEmpty &&
+                                _searchController.text.isNotEmpty
+                            ? const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'No matching requests found',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : RefreshIndicator(
+                              onRefresh: _loadUserAndRequests,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                itemCount:
+                                    _searchController.text.isEmpty
+                                        ? _requests.length
+                                        : _filteredRequests.length,
+                                itemBuilder: (context, index) {
+                                  return _buildRequestCard(
+                                    _searchController.text.isEmpty
+                                        ? _requests[index]
+                                        : _filteredRequests[index],
+                                  );
+                                },
+                              ),
+                            ),
+                  ),
+                ],
+              ),
+      floatingActionButton:
+          (_currentUser == null || _currentUser!.role == 'resident')
+              ? FloatingActionButton(
+                onPressed: _navigateToRequestForm,
+                backgroundColor: Colors.green,
+                tooltip: 'Create Request',
+                child: const Icon(Icons.add),
+              )
+              : null,
     );
   }
-  
+
   Widget _buildEmptyRequestsView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.delete_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.delete_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No special garbage requests found',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
           if (_currentUser == null || _currentUser!.role == 'resident')
             Padding(
