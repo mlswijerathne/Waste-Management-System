@@ -32,11 +32,12 @@ class _SignInPageState extends State<SignInPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool rememberMe = false;
   bool _isLoading = false;
+  bool _obscurePassword = true; // Add password visibility state variable
   String? _errorMessage;
-  
+
   @override
   void initState() {
     super.initState();
@@ -45,11 +46,11 @@ class _SignInPageState extends State<SignInPage> {
     // Load saved credentials
     _loadSavedCredentials();
   }
-  
+
   Future<void> _setupAdmin() async {
     await _authService.setupAdminAccount();
   }
-  
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -67,65 +68,66 @@ class _SignInPageState extends State<SignInPage> {
       });
     }
   }
-  
-  Future<void> _signIn() async {
-  if (!_formKey.currentState!.validate()) {
-    return;
-  }
-  
-  setState(() {
-    _isLoading = true;
-    _errorMessage = null;
-  });
-  
-  try {
-    UserModel? user = await _authService.signIn(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
 
-    // Handle remember me functionality
-    if (rememberMe) {
-      await _authService.saveLoginCredentials(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
-    } else {
-      await _authService.clearLoginCredentials();
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
-    
-    if (user != null && mounted) {
-      // Navigate based on user role
-      switch (user.role) {
-        case 'resident':
-          Navigator.pushReplacementNamed(context, '/resident_home');
-          break;
-        case 'driver':
-          Navigator.pushReplacementNamed(context, '/driver_home');
-          break;
-        case 'cityManagement':
-          Navigator.pushReplacementNamed(context, '/admin_home');
-          break;
-        default:
-          // Show error for unknown role
-          setState(() {
-            _errorMessage = "Unknown user role: ${user.role}";
-            _isLoading = false;
-          });
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      UserModel? user = await _authService.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      // Handle remember me functionality
+      if (rememberMe) {
+        await _authService.saveLoginCredentials(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      } else {
+        await _authService.clearLoginCredentials();
       }
-    } else {
+
+      if (user != null && mounted) {
+        // Navigate based on user role
+        switch (user.role) {
+          case 'resident':
+            Navigator.pushReplacementNamed(context, '/resident_home');
+            break;
+          case 'driver':
+            Navigator.pushReplacementNamed(context, '/driver_home');
+            break;
+          case 'cityManagement':
+            Navigator.pushReplacementNamed(context, '/admin_home');
+            break;
+          default:
+            // Show error for unknown role
+            setState(() {
+              _errorMessage = "Unknown user role: ${user.role}";
+              _isLoading = false;
+            });
+        }
+      } else {
+        setState(() {
+          _errorMessage = "Invalid email or password.";
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
       setState(() {
-        _errorMessage = "Invalid email or password.";
+        _errorMessage = e.toString();
         _isLoading = false;
       });
     }
-  } catch (e) {
-    setState(() {
-      _errorMessage = e.toString();
-      _isLoading = false;
-    });
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,7 +183,10 @@ class _SignInPageState extends State<SignInPage> {
                   children: [
                     const Text(
                       'Sign in',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -220,7 +225,7 @@ class _SignInPageState extends State<SignInPage> {
                     // Password field
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
                         hintText: 'Enter your password',
@@ -229,6 +234,18 @@ class _SignInPageState extends State<SignInPage> {
                         prefixIcon: const Icon(
                           Icons.lock,
                           color: Color(0xFF59A867),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -275,7 +292,8 @@ class _SignInPageState extends State<SignInPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ForgotPasswordScreen(),
+                                builder:
+                                    (context) => const ForgotPasswordScreen(),
                               ),
                             );
                           },
@@ -289,17 +307,20 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ],
                     ),
-                    
+
                     // Error message
                     if (_errorMessage != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                      
+
                     const SizedBox(height: 24),
 
                     // Login button
@@ -313,16 +334,19 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                         elevation: 1, // Reduced elevation
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                      child:
+                          _isLoading
+                              ? const CircularProgressIndicator(
                                 color: Colors.white,
+                              )
+                              : const Text(
+                                'Login',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
                     ),
                     const SizedBox(height: 24),
 

@@ -31,6 +31,7 @@ class _ResidentHomeState extends State<ResidentHome> {
   bool _isLoading = true;
   String _errorMessage = '';
   String? base64Image;
+  int _unreadNotificationCount = 0;
 
   // Default location (Sri Lanka center)
   LatLng _userLocation = const LatLng(7.8731, 80.7718);
@@ -41,6 +42,7 @@ class _ResidentHomeState extends State<ResidentHome> {
   void initState() {
     super.initState();
     _fetchUserDataAndLocation();
+    _fetchUnreadNotificationCount();
   }
 
   @override
@@ -64,8 +66,38 @@ class _ResidentHomeState extends State<ResidentHome> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _fetchUserDataAndLocation();
+        _fetchUnreadNotificationCount();
       }
     });
+  }
+
+  Future<void> _fetchUnreadNotificationCount() async {
+    if (!mounted) return;
+
+    try {
+      final userId = _authService.getCurrentUserId();
+      if (userId == null) {
+        print('User ID is null, cannot fetch notifications');
+        return;
+      }
+
+      // Get notifications from Firestore where 'read' is false
+      QuerySnapshot querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: userId)
+              .where('read', isEqualTo: false)
+              .get();
+
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = querySnapshot.docs.length;
+        });
+      }
+      print('Unread notification count: $_unreadNotificationCount');
+    } catch (e) {
+      print('Error fetching notification count: $e');
+    }
   }
 
   Future<void> _fetchUserDataAndLocation() async {
@@ -223,14 +255,6 @@ class _ResidentHomeState extends State<ResidentHome> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {
-              Navigator.pushNamed(context, '/resident_notifications');
-            },
-          ),
-        ],
         elevation: 0,
         backgroundColor: const Color(0xFF3DAE58),
         automaticallyImplyLeading: false, // Remove back button

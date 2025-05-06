@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:waste_management/service/auth_service.dart';
 
-class ResidentNavbar extends StatelessWidget {
+class ResidentNavbar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
 
@@ -9,6 +11,53 @@ class ResidentNavbar extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
   });
+
+  @override
+  State<ResidentNavbar> createState() => _ResidentNavbarState();
+}
+
+class _ResidentNavbarState extends State<ResidentNavbar> {
+  int _unreadNotificationCount = 0;
+  final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUnreadNotificationCount();
+  }
+
+  @override
+  void didUpdateWidget(ResidentNavbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _fetchUnreadNotificationCount();
+  }
+
+  Future<void> _fetchUnreadNotificationCount() async {
+    try {
+      final userId = _authService.getCurrentUserId();
+      if (userId == null) {
+        print('User ID is null, cannot fetch notifications');
+        return;
+      }
+
+      // Get notifications from Firestore where 'isRead' is false
+      QuerySnapshot querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: userId)
+              .where('isRead', isEqualTo: false)
+              .get();
+
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = querySnapshot.docs.length;
+        });
+      }
+      print('Unread notification count: $_unreadNotificationCount');
+    } catch (e) {
+      print('Error fetching notification count: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,25 +84,27 @@ class ResidentNavbar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: BottomNavigationBar(
-            currentIndex: currentIndex,
+            currentIndex: widget.currentIndex,
             onTap: (index) {
               // First update the index to show the selected tab
-              onTap(index);
+              widget.onTap(index);
 
               // Then navigate to appropriate screen if not already there
-              if (index == 0 && currentIndex != 0) {
+              if (index == 0 && widget.currentIndex != 0) {
                 Navigator.pushReplacementNamed(context, '/resident_home');
-              } else if (index == 1 && currentIndex != 1) {
+              } else if (index == 1 && widget.currentIndex != 1) {
                 Navigator.pushReplacementNamed(
                   context,
                   '/recent_report_and_request',
                 );
-              } else if (index == 2 && currentIndex != 2) {
+              } else if (index == 2 && widget.currentIndex != 2) {
                 Navigator.pushReplacementNamed(
                   context,
                   '/resident_notifications',
                 );
-              } else if (index == 3 && currentIndex != 3) {
+                // Reset unread count when navigating to notifications
+                _fetchUnreadNotificationCount();
+              } else if (index == 3 && widget.currentIndex != 3) {
                 Navigator.pushReplacementNamed(context, '/resident_profile');
               }
             },
@@ -69,25 +120,29 @@ class ResidentNavbar extends StatelessWidget {
                 Icons.home_outlined,
                 Icons.home,
                 'Home',
-                currentIndex == 0,
+                widget.currentIndex == 0,
+                0,
               ),
               _buildBottomNavigationBarItem(
                 Icons.assignment_outlined,
                 Icons.assignment,
                 'Report',
-                currentIndex == 1,
+                widget.currentIndex == 1,
+                0,
               ),
               _buildBottomNavigationBarItem(
                 Icons.notifications_outlined,
                 Icons.notifications,
                 'Notification',
-                currentIndex == 2,
+                widget.currentIndex == 2,
+                _unreadNotificationCount,
               ),
               _buildBottomNavigationBarItem(
                 Icons.person_outline,
                 Icons.person,
                 'Profile',
-                currentIndex == 3,
+                widget.currentIndex == 3,
+                0,
               ),
             ],
           ),
@@ -101,14 +156,42 @@ class ResidentNavbar extends StatelessWidget {
     IconData activeIcon,
     String label,
     bool isSelected,
+    int badgeCount,
   ) {
     return BottomNavigationBarItem(
-      icon: Transform.scale(
-        scale: isSelected ? 1.3 : 1.0,
-        child: Icon(
-          isSelected ? activeIcon : icon,
-          weight: isSelected ? 700 : 400, // Make icon bold when selected
-        ),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Transform.scale(
+            scale: isSelected ? 1.3 : 1.0,
+            child: Icon(
+              isSelected ? activeIcon : icon,
+              weight: isSelected ? 700 : 400,
+            ),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              right: -6,
+              top: -3,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
       ),
       label: label,
     );

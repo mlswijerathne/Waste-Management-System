@@ -13,6 +13,11 @@ class AuthService {
   static const String adminEmail = "admin@wastemanagement.com";
   static const String adminPassword = "admin123456";
 
+  // Get current user ID
+  String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
+
   Future<bool> isUserResident() async {
     try {
       UserModel? user = await getCurrentUser();
@@ -24,7 +29,11 @@ class AuthService {
   }
 
   //get user location
-  Future<bool> updateUserLocation(String userId, double latitude, double longitude) async {
+  Future<bool> updateUserLocation(
+    String userId,
+    double latitude,
+    double longitude,
+  ) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'latitude': latitude,
@@ -58,11 +67,12 @@ class AuthService {
   // Get all drivers
   Future<List<UserModel>> getDrivers() async {
     try {
-      final QuerySnapshot snapshot = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'driver')
-          .get();
-          
+      final QuerySnapshot snapshot =
+          await _firestore
+              .collection('users')
+              .where('role', isEqualTo: 'driver')
+              .get();
+
       return snapshot.docs
           .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
           .toList();
@@ -71,15 +81,13 @@ class AuthService {
       rethrow;
     }
   }
-  
+
   // Get driver by ID
   Future<UserModel?> getDriverById(String driverId) async {
     try {
-      final DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(driverId)
-          .get();
-          
+      final DocumentSnapshot doc =
+          await _firestore.collection('users').doc(driverId).get();
+
       if (doc.exists) {
         return UserModel.fromMap(doc.data() as Map<String, dynamic>);
       }
@@ -93,19 +101,24 @@ class AuthService {
   // NEW METHOD: Get all residents with saved locations
   Future<List<UserModel>> getResidentsWithLocations() async {
     try {
-      final QuerySnapshot snapshot = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'resident')
-          .get();
-          
+      final QuerySnapshot snapshot =
+          await _firestore
+              .collection('users')
+              .where('role', isEqualTo: 'resident')
+              .get();
+
       // Convert to UserModel list and filter out those without locations
-      List<UserModel> residents = snapshot.docs
-          .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
-          .where((resident) => 
-              resident.latitude != null && 
-              resident.longitude != null)
-          .toList();
-          
+      List<UserModel> residents =
+          snapshot.docs
+              .map(
+                (doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>),
+              )
+              .where(
+                (resident) =>
+                    resident.latitude != null && resident.longitude != null,
+              )
+              .toList();
+
       return residents;
     } catch (e) {
       print('Error fetching residents with locations: $e');
@@ -186,13 +199,13 @@ class AuthService {
           email: adminEmail,
           password: adminPassword,
         );
-        
+
         // If admin doesn't exist in auth, create it
         if (result.user != null) {
           // Check if admin exists in Firestore
           DocumentSnapshot doc =
               await _firestore.collection('users').doc(result.user!.uid).get();
-          
+
           if (!doc.exists) {
             // Create admin user model
             UserModel adminModel = UserModel(
@@ -204,13 +217,13 @@ class AuthService {
               contactNumber: "0000000000", // 10 digits as required
               email: adminEmail,
             );
-            
+
             // Save admin data to Firestore
             await _firestore
                 .collection('users')
                 .doc(result.user!.uid)
                 .set(adminModel.toMap());
-                
+
             return adminModel;
           } else {
             return UserModel.fromMap(doc.data() as Map<String, dynamic>);
@@ -261,76 +274,77 @@ class AuthService {
 
   //remember me function
   Future<void> saveLoginCredentials(String email, String password) async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('email', email);
-      await prefs.setString('password', password);
-      await prefs.setBool('rememberMe', true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('email', email);
+    await prefs.setString('password', password);
+    await prefs.setBool('rememberMe', true);
+  }
+
+  Future<void> clearLoginCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('email');
+    await prefs.remove('password');
+    await prefs.setBool('rememberMe', false);
+  }
+
+  Future<Map<String, String?>> getSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool rememberMe = prefs.getBool('rememberMe') ?? false;
+
+    if (rememberMe) {
+      return {
+        'email': prefs.getString('email'),
+        'password': prefs.getString('password'),
+      };
     }
 
-    Future<void> clearLoginCredentials() async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('email');
-      await prefs.remove('password');
-      await prefs.setBool('rememberMe', false);
-    }
+    return {'email': null, 'password': null};
+  }
 
-    Future<Map<String, String?>> getSavedCredentials() async {
-      final prefs = await SharedPreferences.getInstance();
-      final bool rememberMe = prefs.getBool('rememberMe') ?? false;
-      
-      if (rememberMe) {
-        return {
-          'email': prefs.getString('email'),
-          'password': prefs.getString('password'),
-        };
-      }
-      
-      return {'email': null, 'password': null};
-    }
+  // Update user profile with location
+  Future<UserModel?> updateUserProfile({
+    required String userId,
+    String? name,
+    String? address,
+    String? contactNumber,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      Map<String, dynamic> updateData = {};
 
-    // Update user profile with location
-    Future<UserModel?> updateUserProfile({
-      required String userId,
-      String? name,
-      String? address,
-      String? contactNumber,
-      double? latitude,
-      double? longitude,
-    }) async {
-      try {
-        Map<String, dynamic> updateData = {};
-        
-        if (name != null) updateData['name'] = name;
-        if (address != null) updateData['address'] = address;
-        if (contactNumber != null) {
-          // Validate contact number
-          if (contactNumber.length != 10 ||
-              !RegExp(r'^[0-9]+$').hasMatch(contactNumber)) {
-            throw ArgumentError('Contact number must be exactly 10 digits.');
-          }
-          updateData['contactNumber'] = contactNumber;
+      if (name != null) updateData['name'] = name;
+      if (address != null) updateData['address'] = address;
+      if (contactNumber != null) {
+        // Validate contact number
+        if (contactNumber.length != 10 ||
+            !RegExp(r'^[0-9]+$').hasMatch(contactNumber)) {
+          throw ArgumentError('Contact number must be exactly 10 digits.');
         }
-        if (latitude != null) updateData['latitude'] = latitude;
-        if (longitude != null) updateData['longitude'] = longitude;
-        
-        // Only update if we have data to update
-        if (updateData.isNotEmpty) {
-          await _firestore.collection('users').doc(userId).update(updateData);
-          
-          // Get updated user data
-          DocumentSnapshot doc = await _firestore.collection('users').doc(userId).get();
-          if (doc.exists) {
-            return UserModel.fromMap(doc.data() as Map<String, dynamic>);
-          }
-        }
-        
-        return null;
-      } catch (e) {
-        print('Error updating user profile: $e');
-        rethrow;
+        updateData['contactNumber'] = contactNumber;
       }
+      if (latitude != null) updateData['latitude'] = latitude;
+      if (longitude != null) updateData['longitude'] = longitude;
+
+      // Only update if we have data to update
+      if (updateData.isNotEmpty) {
+        await _firestore.collection('users').doc(userId).update(updateData);
+
+        // Get updated user data
+        DocumentSnapshot doc =
+            await _firestore.collection('users').doc(userId).get();
+        if (doc.exists) {
+          return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
     }
-  
+  }
+
   // Initialize admin account
   Future<bool> setupAdminAccount() async {
     try {
@@ -350,7 +364,7 @@ class AuthService {
             email: adminEmail,
             password: adminPassword,
           );
-          
+
           if (result.user != null) {
             // Create admin user model
             UserModel adminModel = UserModel(
@@ -362,13 +376,13 @@ class AuthService {
               contactNumber: "0000000000", // 10 digits as required
               email: adminEmail,
             );
-            
+
             // Save admin data to Firestore
             await _firestore
                 .collection('users')
                 .doc(result.user!.uid)
                 .set(adminModel.toMap());
-                
+
             await _auth.signOut();
             return true;
           }
@@ -382,20 +396,24 @@ class AuthService {
   }
 
   // NEW METHOD: Get nearby residents within a certain radius
-  Future<List<UserModel>> getNearbyResidents(double latitude, double longitude, double radiusInKm) async {
+  Future<List<UserModel>> getNearbyResidents(
+    double latitude,
+    double longitude,
+    double radiusInKm,
+  ) async {
     try {
       // First get all residents with location data
       List<UserModel> residents = await getResidentsWithLocations();
-      
+
       // Filter by distance (using Haversine formula)
       return residents.where((resident) {
         double distance = _calculateDistance(
-          latitude, 
-          longitude, 
-          resident.latitude!, 
-          resident.longitude!
+          latitude,
+          longitude,
+          resident.latitude!,
+          resident.longitude!,
         );
-        
+
         return distance <= radiusInKm;
       }).toList();
     } catch (e) {
@@ -403,25 +421,32 @@ class AuthService {
       rethrow;
     }
   }
-  
+
   // Helper method to calculate distance between two points using Haversine formula
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const double earthRadius = 6371; // in kilometers
-    
+
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
-    
-    double a = 
+
+    double a =
         sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRadians(lat1)) * cos(_toRadians(lat2)) * 
-        sin(dLon / 2) * sin(dLon / 2);
-        
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
     double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     double distance = earthRadius * c;
-    
+
     return distance;
   }
-  
+
   // Helper method to convert degrees to radians
   double _toRadians(double degree) {
     return degree * (pi / 180);
