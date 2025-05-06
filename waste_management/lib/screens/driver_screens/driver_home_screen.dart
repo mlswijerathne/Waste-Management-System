@@ -18,6 +18,7 @@ class _DriverHomeState extends State<DriverHome> {
   String? _profilePhotoUrl;
   String? _driverName;
   bool _isLoading = true;
+  int _unreadNotificationCount = 0; // Added for notification badge count
 
   // New variables for route status
   String? _currentRouteId;
@@ -57,7 +58,11 @@ class _DriverHomeState extends State<DriverHome> {
 
     try {
       // Run fetches in parallel for better performance
-      await Future.wait([_fetchDriverProfileData(), _fetchDriverRouteStatus()]);
+      await Future.wait([
+        _fetchDriverProfileData(),
+        _fetchDriverRouteStatus(),
+        _fetchUnreadNotificationCount(), // Added to load notification count
+      ]);
     } catch (e) {
       print('Error loading data: $e');
     } finally {
@@ -65,6 +70,31 @@ class _DriverHomeState extends State<DriverHome> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  // New method to fetch unread notification count
+  Future<void> _fetchUnreadNotificationCount() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Query Firestore for unread notifications for this driver
+      final notificationsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: user.uid)
+              .where('isRead', isEqualTo: false)
+              .get();
+
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = notificationsSnapshot.docs.length;
+          print('Unread notification count: $_unreadNotificationCount');
+        });
+      }
+    } catch (e) {
+      print('Error fetching unread notification count: $e');
     }
   }
 
@@ -230,11 +260,54 @@ class _DriverHomeState extends State<DriverHome> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {
-              // Handle notifications
-            },
+          // Updated notification icon with badge
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.notifications_outlined,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, '/driver_notifications').then((
+                    _,
+                  ) {
+                    // Refresh notification count when returning from notification screen
+                    _fetchUnreadNotificationCount();
+                  });
+                },
+                tooltip: 'Notifications',
+              ),
+              if (_unreadNotificationCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _unreadNotificationCount > 99
+                            ? '99+'
+                            : _unreadNotificationCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
         elevation: 0,

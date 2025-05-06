@@ -24,6 +24,7 @@ class _ResidentHomeState extends State<ResidentHome> {
       return 'Evening';
     }
   }
+
   int _currentIndex = 0;
   final AuthService _authService = AuthService();
   UserModel? _currentUser;
@@ -54,7 +55,7 @@ class _ResidentHomeState extends State<ResidentHome> {
     // Refresh location when widget updates
     _fetchUserDataAndLocation();
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -69,15 +70,17 @@ class _ResidentHomeState extends State<ResidentHome> {
 
   Future<void> _fetchUserDataAndLocation() async {
     if (!mounted) return;
-    
+
     try {
       setState(() => _isLoading = true);
-      
+
       // Get fresh user data from the database
       _currentUser = await _authService.getCurrentUser();
 
       print('Current user data: ${_currentUser?.toMap()}');
-      print('Latitude: ${_currentUser?.latitude}, Longitude: ${_currentUser?.longitude}');
+      print(
+        'Latitude: ${_currentUser?.latitude}, Longitude: ${_currentUser?.longitude}',
+      );
 
       // Fetch profile image if user exists
       if (_currentUser != null && _currentUser!.uid.isNotEmpty) {
@@ -98,7 +101,9 @@ class _ResidentHomeState extends State<ResidentHome> {
             Marker(
               markerId: const MarkerId('userLocation'),
               position: _userLocation,
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueRed,
+              ),
               infoWindow: InfoWindow(
                 title: 'Your Location',
                 snippet: _currentUser!.address ?? 'Home',
@@ -133,7 +138,7 @@ class _ResidentHomeState extends State<ResidentHome> {
     setState(() {
       _currentIndex = index;
     });
-    
+
     // Refresh location when returning to home tab
     if (index == 0) {
       _fetchUserDataAndLocation();
@@ -141,8 +146,8 @@ class _ResidentHomeState extends State<ResidentHome> {
   }
 
   void _moveCameraToUserLocation() {
-    if (_mapController != null && 
-        _currentUser?.latitude != null && 
+    if (_mapController != null &&
+        _currentUser?.latitude != null &&
         _currentUser?.longitude != null) {
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -159,22 +164,25 @@ class _ResidentHomeState extends State<ResidentHome> {
   }
 
   Future<void> _getProfileImage(String uid) async {
-  try {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (doc.exists && doc.data()!.containsKey('profileImage')) {
-      if (mounted) {
-        setState(() {
-          base64Image = doc.data()!['profileImage'] as String;
-        });
-        print('Profile image loaded successfully: ${base64Image?.substring(0, 20)}...');
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc.data()!.containsKey('profileImage')) {
+        if (mounted) {
+          setState(() {
+            base64Image = doc.data()!['profileImage'] as String;
+          });
+          print(
+            'Profile image loaded successfully: ${base64Image?.substring(0, 20)}...',
+          );
+        }
+      } else {
+        print('No profile image found for user: $uid');
       }
-    } else {
-      print('No profile image found for user: $uid');
+    } catch (e) {
+      print('Error getting profile image: $e');
     }
-  } catch (e) {
-    print('Error getting profile image: $e');
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -186,15 +194,14 @@ class _ResidentHomeState extends State<ResidentHome> {
             CircleAvatar(
               radius: 20,
               backgroundColor: Colors.white,
-              backgroundImage: base64Image != null
-                ? MemoryImage(base64Decode(base64Image!))
-                : null,
-              child: base64Image == null
-                ? const Icon(
-                    Icons.person,
-                    color: Color(0xFF3DAE58),
-                  )
-                : null,
+              backgroundImage:
+                  base64Image != null
+                      ? MemoryImage(base64Decode(base64Image!))
+                      : null,
+              child:
+                  base64Image == null
+                      ? const Icon(Icons.person, color: Color(0xFF3DAE58))
+                      : null,
             ),
             const SizedBox(width: 12),
             Column(
@@ -202,10 +209,7 @@ class _ResidentHomeState extends State<ResidentHome> {
               children: [
                 Text(
                   'Good ${_getDayWish()}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
                 Text(
                   '${_currentUser?.name ?? 'Resident'}',
@@ -223,7 +227,7 @@ class _ResidentHomeState extends State<ResidentHome> {
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {
-              // Handle notifications
+              Navigator.pushNamed(context, '/resident_notifications');
             },
           ),
         ],
@@ -235,25 +239,24 @@ class _ResidentHomeState extends State<ResidentHome> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Container(
               width: double.infinity,
               height: 20,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-              color: const Color(0xFF3DAE58),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-              boxShadow: [
-                BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+                color: const Color(0xFF3DAE58),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
                 ),
-              ],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
             ),
 
@@ -348,11 +351,13 @@ class _ResidentHomeState extends State<ResidentHome> {
                           // Edit location button
                           InkWell(
                             onTap: () {
-                              Navigator.pushNamed(context, '/resident_location_picker_screen')
-                                  .then((_) {
-                                    // Force refresh when returning from location picker
-                                    _fetchUserDataAndLocation();
-                                  });
+                              Navigator.pushNamed(
+                                context,
+                                '/resident_location_picker_screen',
+                              ).then((_) {
+                                // Force refresh when returning from location picker
+                                _fetchUserDataAndLocation();
+                              });
                             },
                             child: Container(
                               padding: const EdgeInsets.all(8),
@@ -425,28 +430,44 @@ class _ResidentHomeState extends State<ResidentHome> {
                     icon: Icons.map,
                     title: 'Active Routes',
                     description: 'Track waste collection in real-time',
-                    onTap: () => Navigator.pushNamed(context, '/active_route_screen'),
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/active_route_screen',
+                        ),
                     color: const Color(0xFF3DAE58),
                   ),
                   _ActionCard(
                     icon: Icons.report_problem_outlined,
                     title: 'Report Issue',
                     description: 'Report cleanliness issues in your area',
-                    onTap: () => Navigator.pushNamed(context, '/report_cleanliness_issue'),
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/report_cleanliness_issue',
+                        ),
                     color: Colors.orange[700]!,
                   ),
                   _ActionCard(
                     icon: Icons.history,
                     title: 'Recent Reports',
                     description: 'Check your recent report status',
-                    onTap: () => Navigator.pushNamed(context, '/recent_report_and_request'),
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/recent_report_and_request',
+                        ),
                     color: Colors.blue[600]!,
                   ),
                   _ActionCard(
                     icon: Icons.recycling_rounded,
                     title: 'Special Pickup',
                     description: 'Request pickup for special waste',
-                    onTap: () => Navigator.pushNamed(context, '/resident_special_garbage_request_screen'),
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/resident_special_garbage_request_screen',
+                        ),
                     color: Colors.purple[700]!,
                   ),
                 ],
@@ -465,7 +486,7 @@ class _ResidentHomeState extends State<ResidentHome> {
                 ),
               ),
             ),
-            
+
             // Scrollable tips cards
             SizedBox(
               height: 180,
@@ -476,19 +497,22 @@ class _ResidentHomeState extends State<ResidentHome> {
                   _TipCard(
                     icon: Icons.eco,
                     title: 'Reduce Plastic',
-                    description: 'Carry a reusable water bottle instead of buying single-use plastic bottles.',
+                    description:
+                        'Carry a reusable water bottle instead of buying single-use plastic bottles.',
                     color: const Color(0xFF3DAE58),
                   ),
                   _TipCard(
                     icon: Icons.recycling,
                     title: 'Segregate Waste',
-                    description: 'Separate recyclables from general waste to improve recycling efficiency.',
+                    description:
+                        'Separate recyclables from general waste to improve recycling efficiency.',
                     color: Colors.blue[600]!,
                   ),
                   _TipCard(
                     icon: Icons.compost,
                     title: 'Compost Organics',
-                    description: 'Turn kitchen scraps into nutrient-rich soil for your garden.',
+                    description:
+                        'Turn kitchen scraps into nutrient-rich soil for your garden.',
                     color: Colors.amber[800]!,
                   ),
                 ],
@@ -551,11 +575,7 @@ class _ActionCard extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: color,
-              ),
+              child: Icon(icon, size: 24, color: color),
             ),
             const SizedBox(height: 12),
             Text(
@@ -569,10 +589,7 @@ class _ActionCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               description,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -641,10 +658,7 @@ class _TipCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   description,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                 ),

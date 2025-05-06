@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import 'package:waste_management/models/cleanlinessIssueModel.dart';
 import 'package:waste_management/models/specialGarbageRequestModel.dart';
 import 'package:waste_management/screens/driver_screens/driver_special_garbage_detail_screen.dart';
 import 'package:waste_management/service/auth_service.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
-import 'package:waste_management/widgets/driver_navbar.dart'; // Import the DriversNavbar
+import 'package:waste_management/widgets/driver_navbar.dart';
 
 class DriverAssignmentScreen extends StatefulWidget {
   const DriverAssignmentScreen({Key? key}) : super(key: key);
@@ -28,9 +29,16 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
   List<SpecialGarbageRequestModel> _assignedSpecialRequests = [];
 
   bool _isLoading = true;
+  bool _isInitialLoading = true; // Track initial load
   String _driverId = '';
   final Color primaryColor = const Color(0xFF59A867);
   int _currentIndex = 3; // Set current index to 3 for Assignment screen
+
+  // Stream subscriptions for real-time updates
+  StreamSubscription<List<CleanlinessIssueModel>>?
+  _cleanlinessStreamSubscription;
+  StreamSubscription<List<SpecialGarbageRequestModel>>?
+  _specialRequestsStreamSubscription;
 
   @override
   void initState() {
@@ -41,6 +49,9 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
 
   @override
   void dispose() {
+    // Cancel stream subscriptions when disposing the widget
+    _cleanlinessStreamSubscription?.cancel();
+    _specialRequestsStreamSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -52,7 +63,10 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
         setState(() {
           _driverId = currentUser.uid;
         });
-        _loadAllAssignments();
+        // Initial load with one-time queries for faster startup
+        await _loadAllAssignments();
+        // Then set up streams for real-time updates
+        _setupStreams();
       } else {
         ScaffoldMessenger.of(
           context,
@@ -67,17 +81,62 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
     }
   }
 
+  void _setupStreams() {
+    // Set up real-time stream for cleanliness issues
+    _cleanlinessStreamSubscription = _cleanlinessService
+        .getDriverIssuesStream(_driverId)
+        .listen(
+          (issues) {
+            if (mounted) {
+              setState(() {
+                _assignedIssues = issues;
+                _isLoading = false;
+              });
+            }
+          },
+          onError: (e) {
+            print('Error in cleanliness stream: $e');
+          },
+        );
+
+    // Set up real-time stream for special requests
+    _specialRequestsStreamSubscription = _specialGarbageService
+        .getDriverRequestsStream(_driverId)
+        .listen(
+          (requests) {
+            if (mounted) {
+              setState(() {
+                _assignedSpecialRequests = requests;
+                _isLoading = false;
+              });
+            }
+          },
+          onError: (e) {
+            print('Error in special requests stream: $e');
+          },
+        );
+  }
+
   Future<void> _loadAllAssignments() async {
+    if (_driverId.isEmpty) return;
+
     setState(() {
       _isLoading = true;
     });
 
     // Load both types of assignments in parallel
-    await Future.wait([_loadCleanlinessIssues(), _loadSpecialRequests()]);
-
-    setState(() {
-      _isLoading = false;
-    });
+    try {
+      await Future.wait([_loadCleanlinessIssues(), _loadSpecialRequests()]);
+    } catch (e) {
+      print('Error loading assignments: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isInitialLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadCleanlinessIssues() async {
@@ -87,14 +146,18 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
       final issues = await _cleanlinessService.getDriverAssignedIssues(
         _driverId,
       );
-      setState(() {
-        _assignedIssues = issues;
-      });
+      if (mounted) {
+        setState(() {
+          _assignedIssues = issues;
+        });
+      }
     } catch (e) {
       print('Error loading cleanliness issues: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load cleanliness issues')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load cleanliness issues')),
+        );
+      }
     }
   }
 
@@ -102,20 +165,35 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
     if (_driverId.isEmpty) return;
 
     try {
+      // Use the method that only fetches requests with 'assigned' status
       final requests = await _specialGarbageService.getDriverAssignedRequests(
         _driverId,
       );
-      setState(() {
-        _assignedSpecialRequests = requests;
-      });
+      if (mounted) {
+        setState(() {
+          _assignedSpecialRequests = requests;
+        });
+      }
     } catch (e) {
       print('Error loading special requests: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load special garbage requests'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to load special garbage requests'),
+          ),
+        );
+      }
     }
+  }
+
+  // Force refresh function to manually update data
+  Future<void> _refreshData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Use one-time load to refresh the data
+    await _loadAllAssignments();
   }
 
   String _formatTime(DateTime dateTime) {
@@ -151,7 +229,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: primaryColor),
-            onPressed: _loadAllAssignments,
+            onPressed: _refreshData,
           ),
         ],
         bottom: TabBar(
@@ -169,8 +247,20 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
         ),
       ),
       body:
-          _isLoading
-              ? Center(child: CircularProgressIndicator(color: primaryColor))
+          _isInitialLoading
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: primaryColor),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading your assignments...',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
               : TabBarView(
                 controller: _tabController,
                 children: [
@@ -180,7 +270,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
                         'No Cleanliness Issues',
                         'When you are assigned to cleanliness issues, they will appear here',
                         Icons.cleaning_services_outlined,
-                        _loadCleanlinessIssues,
+                        _refreshData,
                       )
                       : _buildCleanlinessIssuesList(),
 
@@ -190,7 +280,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
                         'No Special Requests',
                         'You have no special garbage requests assigned to you',
                         Icons.recycling_outlined,
-                        _loadSpecialRequests,
+                        _refreshData,
                       )
                       : _buildSpecialRequestsList(),
                 ],
@@ -198,7 +288,7 @@ class _DriverAssignmentScreenState extends State<DriverAssignmentScreen>
       bottomNavigationBar: DriversNavbar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-      ), // Add the navbar
+      ),
     );
   }
 

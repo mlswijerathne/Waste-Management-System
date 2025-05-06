@@ -51,7 +51,7 @@ class ResidentNavbar extends StatelessWidget {
               } else if (index == 2 && currentIndex != 2) {
                 Navigator.pushReplacementNamed(
                   context,
-                  '',
+                  '/resident_notifications',
                 );
               } else if (index == 3 && currentIndex != 3) {
                 Navigator.pushReplacementNamed(context, '/resident_profile');

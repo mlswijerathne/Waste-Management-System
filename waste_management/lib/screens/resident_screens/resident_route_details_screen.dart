@@ -57,13 +57,23 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   Future<void> _loadTruckIcon() async {
     try {
-      // First attempt: Load from asset and convert to bytes
-      final Uint8List markerIcon = await _getBytesFromAsset(
+      // More reliable approach: Load asset as bytes with explicit size
+      final ByteData data = await rootBundle.load(
         'assets/icons/truck_icon.png',
-        80,
       );
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: 110, // Larger size for better visibility
+        targetHeight: 110,
+      );
+      final ui.FrameInfo fi = await codec.getNextFrame();
+      final Uint8List markerIcon =
+          (await fi.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          ))!.buffer.asUint8List();
+
       _truckIcon = BitmapDescriptor.fromBytes(markerIcon);
-      print('Truck icon loaded successfully from bytes');
+      print('Truck icon loaded successfully from bytes with size 110x110');
 
       // Update truck marker if we already have a position
       if (_truckPosition != null && mounted) {
@@ -74,15 +84,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       return;
     } catch (e) {
       print('Error loading truck icon from bytes: $e');
+      // Continue to next approach
     }
 
     try {
-      // Second attempt: Use BitmapDescriptor.fromAssetImage
+      // Second attempt with different configuration
+      final ImageConfiguration imageConfig = ImageConfiguration(
+        size: const Size(80, 80),
+        devicePixelRatio: MediaQuery.of(context).devicePixelRatio,
+      );
+
       _truckIcon = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(80, 80)),
+        imageConfig,
         'assets/icons/truck_icon.png',
       );
-      print('Loaded truck icon from asset image');
+      print('Loaded truck icon from asset image with custom configuration');
 
       if (_truckPosition != null && mounted) {
         setState(() {
@@ -92,6 +108,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       return;
     } catch (e) {
       print('Error loading truck icon from asset image: $e');
+      // Fall back to default marker
     }
 
     // Fallback to default marker
@@ -206,6 +223,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   void _setupTruckPositionListener() {
     // Cancel any existing subscriptions
     _progressSubscription?.cancel();
+    _positionStreamSubscription?.cancel();
 
     // Set up new subscription to route progress
     _progressSubscription = _routeService
@@ -246,6 +264,45 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             print('Error in route position stream: $e');
           },
         );
+
+    // Add a periodic position refresh as a backup to the stream
+    // This will ensure we get updates even if the stream isn't firing frequently enough
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      try {
+        // Get the latest position data manually
+        final progressDoc = await _routeService.getRouteProgressState(
+          widget.routeId,
+        );
+
+        if (progressDoc != null &&
+            progressDoc['currentLat'] != null &&
+            progressDoc['currentLng'] != null) {
+          final newPosition = LatLng(
+            progressDoc['currentLat'],
+            progressDoc['currentLng'],
+          );
+
+          // Only update if position has changed
+          if (_truckPosition == null ||
+              _truckPosition!.latitude != newPosition.latitude ||
+              _truckPosition!.longitude != newPosition.longitude) {
+            if (mounted) {
+              setState(() {
+                _truckPosition = newPosition;
+                _updateTruckMarker(newPosition);
+              });
+            }
+          }
+        }
+      } catch (e) {
+        print('Error in periodic position refresh: $e');
+      }
+    });
   }
 
   // Calculate bearing between two points (for truck rotation)

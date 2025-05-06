@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:math' as Math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:intl/intl.dart';
@@ -45,6 +48,10 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
     zoom: 12,
   );
 
+  // This variable tracks which route ID we're currently following
+  String? _followingRouteId;
+  GoogleMapController? _cameraController;
+
   @override
   void initState() {
     super.initState();
@@ -63,16 +70,62 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
   }
 
   Future<void> _loadCustomIcons() async {
-    _truckIcon = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(48, 48)),
-      'assets/icons/truck_icon.png',
-    );
+    try {
+      // Load custom truck icon with explicit size parameters
+      final Uint8List truckIconBytes = await _getBytesFromAsset(
+        'assets/icons/truck_icon.png',
+        110, // Larger size for better visibility
+      );
+      _truckIcon = BitmapDescriptor.fromBytes(truckIconBytes);
 
-    // Load a different icon for the selected/active truck
-    _activeTruckIcon = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(64, 64)),
-      'assets/icons/truck_icon.png',
+      // Load active truck icon (slightly larger for emphasis)
+      final Uint8List activeTruckIconBytes = await _getBytesFromAsset(
+        'assets/icons/truck_icon.png',
+        140, // Larger size for the selected truck
+      );
+      _activeTruckIcon = BitmapDescriptor.fromBytes(activeTruckIconBytes);
+
+      print('Custom truck icons loaded successfully with custom sizes');
+    } catch (e) {
+      print('Error loading custom truck icons: $e');
+
+      // Fallback: try standard asset loading
+      try {
+        _truckIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(48, 48)),
+          'assets/icons/truck_icon.png',
+        );
+
+        _activeTruckIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(64, 64)),
+          'assets/icons/truck_icon.png',
+        );
+
+        print('Custom truck icons loaded with standard method');
+      } catch (e) {
+        print('Fallback icon loading failed: $e');
+
+        // Final fallback: use default markers with different hues
+        _truckIcon = BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueAzure,
+        );
+        _activeTruckIcon = BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueBlue,
+        );
+      }
+    }
+  }
+
+  Future<Uint8List> _getBytesFromAsset(String path, int width) async {
+    ByteData data = await rootBundle.load(path);
+    ui.Codec codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: width,
     );
+    ui.FrameInfo fi = await codec.getNextFrame();
+    return (await fi.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!.buffer.asUint8List();
   }
 
   void _subscribeToRoutes() {
@@ -114,19 +167,21 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
               progressDoc['currentLng'],
             );
 
+            // Get route time estimation for more accurate completion data
+            final timeEstimation = await _routeService.getRouteTimeEstimation(
+              route.id,
+            );
+
             refreshedRoutes.add({
               'route': route,
               'currentPosition': newPosition,
               'completionPercentage':
-                  progressDoc['completionPercentage'] ?? 0.0,
-              'estimatedCompletionTime': _calculateEstimatedCompletion(
-                progressDoc['completionPercentage'] ?? 0.0,
-                progressDoc['totalEstimatedTimeMinutes'] ?? 0.0,
-              ),
-              'remainingTimeMinutes': _calculateRemainingTime(
-                progressDoc['completionPercentage'] ?? 0.0,
-                progressDoc['totalEstimatedTimeMinutes'] ?? 0.0,
-              ),
+                  progressDoc['completionPercentage'] ??
+                  timeEstimation['completionPercentage'] ??
+                  0.0,
+              'estimatedCompletionTime':
+                  timeEstimation['estimatedCompletionTime'],
+              'remainingTimeMinutes': timeEstimation['remainingTimeMinutes'],
             });
           } else {
             // Keep existing position data if we couldn't get new data
@@ -134,17 +189,22 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
           }
         } catch (e) {
           print('Error refreshing location for route ${route.id}: $e');
+          // Keep existing data in case of error
           refreshedRoutes.add(routeData);
         }
       }
 
-      setState(() {
-        _allRoutes = refreshedRoutes;
-        _updateMarkers();
-      });
+      if (mounted) {
+        setState(() {
+          _allRoutes = refreshedRoutes;
+          _updateMarkers();
+        });
 
-      // If following a truck, update the camera position
-      _updateCameraIfFollowing();
+        // If following a truck, update the camera position
+        if (_followSelectedTruck && _selectedDriver != null) {
+          _updateCameraIfFollowing();
+        }
+      }
     }
   }
 
@@ -169,13 +229,22 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
   }
 
   void _updateCameraIfFollowing() {
-    if (!_followSelectedTruck || _selectedDriver == null) return;
+    if (_followingRouteId != null && _cameraController != null) {
+      // Find the route we're currently following
+      final routeData = _allRoutes.firstWhere(
+        (data) => data['route'].id == _followingRouteId,
+        orElse:
+            () => Map<String, dynamic>(), // Return empty map instead of null
+      );
 
-    final pos = _selectedDriver!['currentPosition'];
-    if (pos != null && _mapCreated) {
-      _controller.future.then((controller) {
-        controller.animateCamera(CameraUpdate.newLatLng(pos));
-      });
+      // If we found the route and it has a current position, update the camera
+      if (routeData.isNotEmpty && routeData['currentPosition'] != null) {
+        _cameraController?.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: routeData['currentPosition'], zoom: 15.0),
+          ),
+        );
+      }
     }
   }
 
@@ -194,11 +263,13 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
       final isSelected =
           _selectedDriver != null && _selectedDriver!['route'].id == id;
 
+      // Store the new position regardless of whether animation is needed
+      _lastPositions[id] = newPos;
+
+      // Only animate if there's a previous position that's different
       if (lastPos != null && lastPos != newPos) {
         _animateMarker(id, lastPos, newPos);
       }
-
-      _lastPositions[id] = newPos;
 
       final marker = Marker(
         markerId: MarkerId(id),

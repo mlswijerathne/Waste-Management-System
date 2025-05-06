@@ -23,7 +23,8 @@ class _DriverSpecialGarbageScreenState
   List<SpecialGarbageRequestModel> _allRequests = [];
   bool _isLoading = true;
   String _driverId = '';
-  String _selectedFilter = 'All';
+  String _selectedFilter =
+      'Completed'; // Changed to show Completed requests by default
   final List<String> _filterOptions = ['All', 'Assigned', 'Completed'];
 
   // Stream subscription for real-time updates
@@ -61,13 +62,29 @@ class _DriverSpecialGarbageScreenState
 
   Future<void> _loadHistoricalRequests() async {
     try {
+      setState(() {
+        _isLoading = true;
+      });
+
       // Get all requests that were assigned to this driver (including historical ones)
-      final requests = await _requestService.getDriverAssignedRequests(
+      final assignedRequests = await _requestService.getDriverAssignedRequests(
         _driverId,
       );
 
+      // Also fetch completed requests for this driver
+      final completedRequests = await _requestService
+          .getDriverCompletedRequests(_driverId);
+
+      // Combine all requests, removing duplicates by ID
+      final allRequests = [...assignedRequests];
+      for (final request in completedRequests) {
+        if (!allRequests.any((r) => r.id == request.id)) {
+          allRequests.add(request);
+        }
+      }
+
       setState(() {
-        _allRequests = requests;
+        _allRequests = allRequests;
         _isLoading = false;
       });
     } catch (e) {

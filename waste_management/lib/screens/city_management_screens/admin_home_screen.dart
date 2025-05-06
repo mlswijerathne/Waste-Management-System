@@ -6,9 +6,12 @@ import 'package:waste_management/service/breakdown_service.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
+import 'package:waste_management/service/notification_service.dart';
 import 'package:waste_management/widgets/admin_navbar.dart';
 import 'package:waste_management/screens/city_management_screens/admin_all_residents_screen.dart';
 import 'package:waste_management/screens/city_management_screens/admin_all_drivers_screen.dart';
+import 'package:waste_management/screens/city_management_screens/admin_notification_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -25,6 +28,10 @@ class _AdminHomeState extends State<AdminHome> {
   final BreakdownService _breakdownService = BreakdownService();
   final SpecialGarbageRequestService _specialRequestService =
       SpecialGarbageRequestService();
+  final NotificationService _notificationService = NotificationService();
+
+  // Notification badge count
+  int _unreadNotificationCount = 0;
 
   // Statistics data
   int activeRoutes = 0;
@@ -37,6 +44,80 @@ class _AdminHomeState extends State<AdminHome> {
   void initState() {
     super.initState();
     _loadStatistics();
+    _fetchUnreadNotificationCount();
+  }
+
+  Future<void> _fetchUnreadNotificationCount() async {
+    if (!mounted) return;
+
+    try {
+      // Get the current user ID
+      final currentUser = await _authService.getCurrentUser();
+      if (currentUser == null) return;
+
+      // Query Firestore for all notifications for city management role
+      // We need to check notifications sent to the role, not just to the specific user
+      final roleNotificationsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('notifications')
+              .where(
+                'type',
+                whereIn: [
+                  // Route notifications
+                  'route_created',
+                  'route_assigned',
+                  'route_started',
+                  'route_paused',
+                  'route_resumed',
+                  'route_completed',
+                  'route_cancelled',
+                  'route_restarted',
+                  // Cleanliness notifications
+                  'new_cleanliness_issue',
+                  'issue_assigned',
+                  'issue_in_progress',
+                  'issue_resolved', 'issue_confirmed', 'issue_not_confirmed',
+                  // Garbage notifications
+                  'special_garbage_request', 'special_garbage_assigned',
+                  'special_garbage_collected', 'special_garbage_confirmed',
+                  // Breakdown notifications
+                  'new_breakdown',
+                  'breakdown_status_update',
+                  'breakdown_comment',
+                ],
+              )
+              .where('isRead', isEqualTo: false)
+              .get();
+
+      // Add direct notifications to the user
+      final userNotificationsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: currentUser.uid)
+              .where('isRead', isEqualTo: false)
+              .get();
+
+      if (mounted) {
+        setState(() {
+          // Count unread notifications from both queries (role-based and user-specific)
+          // Use Set to avoid counting duplicates
+          final Set<String> notificationIds = {};
+
+          for (var doc in roleNotificationsSnapshot.docs) {
+            notificationIds.add(doc.id);
+          }
+
+          for (var doc in userNotificationsSnapshot.docs) {
+            notificationIds.add(doc.id);
+          }
+
+          _unreadNotificationCount = notificationIds.length;
+          print('Unread notification count: $_unreadNotificationCount');
+        });
+      }
+    } catch (e) {
+      print('Error fetching unread notification count: $e');
+    }
   }
 
   Future<void> _loadStatistics() async {
@@ -175,7 +256,53 @@ class _AdminHomeState extends State<AdminHome> {
           elevation: 0,
           automaticallyImplyLeading: false,
           actions: [
-
+            // Notification icon button with badge
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/admin_notifications').then((
+                      _,
+                    ) {
+                      // Refresh notification count when returning from notification screen
+                      _fetchUnreadNotificationCount();
+                    });
+                  },
+                  tooltip: 'Notifications',
+                  color: Colors.white,
+                ),
+                if (_unreadNotificationCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Center(
+                        child: Text(
+                          _unreadNotificationCount > 99
+                              ? '99+'
+                              : _unreadNotificationCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: _showLogoutConfirmation,
@@ -190,7 +317,8 @@ class _AdminHomeState extends State<AdminHome> {
             // Home Page
             _buildHomeTab(),
             const Center(child: Text('Tasks Page')),
-            const Center(child: Text('Notification Page')),
+            // Notification Tab with our new AdminNotificationScreen
+            const AdminNotificationScreen(),
             const Center(child: Text('Profile Page')),
           ],
         ),

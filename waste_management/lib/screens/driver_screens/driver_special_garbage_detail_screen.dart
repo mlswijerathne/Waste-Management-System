@@ -3,21 +3,23 @@ import 'package:waste_management/models/specialGarbageRequestModel.dart';
 import 'package:waste_management/service/special_Garbage_Request_service.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
 
 class DriverSpecialGarbageDetailScreen extends StatefulWidget {
   final String requestId;
 
-  const DriverSpecialGarbageDetailScreen({
-    Key? key,
-    required this.requestId,
-  }) : super(key: key);
+  const DriverSpecialGarbageDetailScreen({Key? key, required this.requestId})
+    : super(key: key);
 
   @override
-  State<DriverSpecialGarbageDetailScreen> createState() => _DriverSpecialGarbageDetailScreenState();
+  State<DriverSpecialGarbageDetailScreen> createState() =>
+      _DriverSpecialGarbageDetailScreenState();
 }
 
-class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageDetailScreen> {
-  final SpecialGarbageRequestService _requestService = SpecialGarbageRequestService();
+class _DriverSpecialGarbageDetailScreenState
+    extends State<DriverSpecialGarbageDetailScreen> {
+  final SpecialGarbageRequestService _requestService =
+      SpecialGarbageRequestService();
   bool _isLoading = true;
   bool _isMarking = false;
   SpecialGarbageRequestModel? _request;
@@ -48,11 +50,8 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
       setState(() {
         _request = request;
         _isLoading = false;
-        
-        // Pre-fill weight field if available
-        if (request?.estimatedWeight != null) {
-          _weightController.text = request!.estimatedWeight.toString();
-        }
+
+        // Pre-filling has been removed as per requirement
       });
     } catch (e) {
       setState(() {
@@ -76,21 +75,19 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
     });
 
     try {
-      double? weight;
-      if (_weightController.text.isNotEmpty) {
-        weight = double.tryParse(_weightController.text);
-      }
-
+      // No weight or notes passed as per requirements
       final success = await _requestService.markRequestCollected(
         requestId: widget.requestId,
-        actualWeight: weight,
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
+        actualWeight: null,
+        notes: null,
       );
 
       if (success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Request marked as collected successfully')),
+            const SnackBar(
+              content: Text('Request marked as collected successfully'),
+            ),
           );
           Navigator.pop(context, true);
         }
@@ -100,7 +97,9 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to mark request as collected')),
+            const SnackBar(
+              content: Text('Failed to mark request as collected'),
+            ),
           );
         }
       }
@@ -109,20 +108,20 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
         _isMarking = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
   Future<void> _openMapsNavigation() async {
     if (_request == null) return;
-    
+
     final lat = _request!.latitude;
     final lng = _request!.longitude;
     final url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
-    
+
     try {
       if (await canLaunch(url)) {
         await launch(url);
@@ -134,9 +133,9 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Navigation error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Navigation error: $e')));
     }
   }
 
@@ -152,34 +151,36 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _request == null
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _request == null
               ? const Center(child: Text('Request not found'))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildStatusCard(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildStatusCard(),
+                    const SizedBox(height: 16),
+                    _buildDetailsCard(),
+                    const SizedBox(height: 16),
+                    if (_request!.imageUrl != null &&
+                        _request!.imageUrl!.isNotEmpty) ...[
+                      _buildImageCard(),
                       const SizedBox(height: 16),
-                      _buildDetailsCard(),
-                      const SizedBox(height: 16),
-                      if (_request!.imageUrl != null && _request!.imageUrl!.isNotEmpty) ...[
-                        _buildImageCard(),
-                        const SizedBox(height: 16),
-                      ],
-                      _buildCollectionForm(),
                     ],
-                  ),
+                    _buildCollectionForm(),
+                  ],
                 ),
+              ),
     );
   }
 
   Widget _buildStatusCard() {
     final DateFormat formatter = DateFormat('MMM dd, yyyy - hh:mm a');
     String assignedTime = "Not assigned";
-    
+
     if (_request?.assignedTime != null) {
       try {
         assignedTime = formatter.format(_request!.assignedTime!);
@@ -187,7 +188,7 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
         assignedTime = "Invalid date";
       }
     }
-    
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 2,
@@ -207,7 +208,10 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green,
                     borderRadius: BorderRadius.circular(16),
@@ -252,17 +256,18 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
           children: [
             const Text(
               'Request Details',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
             const Divider(),
             const SizedBox(height: 8),
             _buildDetailRow(Icons.category, 'Type', _request!.garbageType),
             const SizedBox(height: 8),
-            _buildDetailRow(Icons.description, 'Description', _request!.description),
+            _buildDetailRow(
+              Icons.description,
+              'Description',
+              _request!.description,
+            ),
             const SizedBox(height: 8),
             _buildDetailRow(
               Icons.location_on,
@@ -294,7 +299,12 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value, {Widget? trailing}) {
+  Widget _buildDetailRow(
+    IconData icon,
+    String label,
+    String value, {
+    Widget? trailing,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -306,15 +316,9 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 16),
-              ),
+              Text(value, style: const TextStyle(fontSize: 16)),
             ],
           ),
         ),
@@ -334,10 +338,7 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
           children: [
             const Text(
               'Garbage Image',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
             const Divider(),
@@ -356,17 +357,34 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
     try {
       // Try to decode the base64 image
       if (_request?.imageUrl != null && _request!.imageUrl!.isNotEmpty) {
-        if (_request!.imageUrl!.startsWith('http')) {
-          // It's a URL, not base64
+        // Check if image is a data URI (base64)
+        if (_request!.imageUrl!.startsWith('data:image')) {
+          return Image.memory(
+            base64Decode(_request!.imageUrl!.split(',').last),
+            fit: BoxFit.cover,
+            height: 200,
+            width: double.infinity,
+            errorBuilder: (context, error, stackTrace) {
+              print("Error displaying base64 image: $error");
+              return const Center(
+                heightFactor: 2,
+                child: Text('Failed to decode image'),
+              );
+            },
+          );
+        }
+        // Check if it's a regular URL
+        else if (_request!.imageUrl!.startsWith('http')) {
           return Image.network(
             _request!.imageUrl!,
             fit: BoxFit.cover,
             height: 200,
             width: double.infinity,
             errorBuilder: (context, error, stackTrace) {
+              print("Error displaying network image: $error");
               return const Center(
                 heightFactor: 2,
-                child: Text('Failed to load image'),
+                child: Text('Failed to load image from network'),
               );
             },
             loadingBuilder: (context, child, loadingProgress) {
@@ -374,49 +392,57 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
               return Center(
                 heightFactor: 2,
                 child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / 
-                          loadingProgress.expectedTotalBytes!
-                      : null,
+                  value:
+                      loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
                 ),
               );
             },
           );
-        } else {
-          // Try to decode base64
+        }
+        // Assume it's just a base64 string without the data:image prefix
+        else {
           try {
-            final uri = Uri.parse(_request!.imageUrl!);
-            if (uri.data != null) {
-              return Image.memory(
-                uri.data!.contentAsBytes(),
-                fit: BoxFit.cover,
-                height: 200,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    heightFactor: 2,
-                    child: Text('Failed to decode image'),
-                  );
-                },
-              );
-            }
+            return Image.memory(
+              base64Decode(_request!.imageUrl!),
+              fit: BoxFit.cover,
+              height: 200,
+              width: double.infinity,
+              errorBuilder: (context, error, stackTrace) {
+                print("Error displaying plain base64 image: $error");
+                return const Center(
+                  heightFactor: 2,
+                  child: Text('Failed to decode image data'),
+                );
+              },
+            );
           } catch (e) {
             print("Error decoding base64 image: $e");
           }
         }
       }
-      
+
       // Fallback
-      return const Center(
-        heightFactor: 2,
-        child: Text('Image unavailable'),
+      return Container(
+        height: 200,
+        width: double.infinity,
+        color: Colors.grey[200],
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.image_not_supported, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text('Image not available', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
       );
     } catch (e) {
       print("Error displaying image: $e");
-      return const Center(
-        heightFactor: 2,
-        child: Text('Error loading image'),
-      );
+      return Center(heightFactor: 2, child: Text('Error: $e'));
     }
   }
 
@@ -433,59 +459,30 @@ class _DriverSpecialGarbageDetailScreenState extends State<DriverSpecialGarbageD
             children: [
               const Text(
                 'Mark as Collected',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _weightController,
-                decoration: const InputDecoration(
-                  labelText: 'Actual Weight (kg)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.scale),
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    final weight = double.tryParse(value);
-                    if (weight == null || weight <= 0) {
-                      return 'Please enter a valid weight';
-                    }
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Collection Notes',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note),
-                  hintText: 'Optional notes about the collection',
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
+              // Weight and notes fields removed as per requirements
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isMarking ? null : _markAsCollected,
-                  icon: _isMarking
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check_circle),
-                  label: Text(_isMarking ? 'Processing...' : 'MARK AS COLLECTED'),
+                  icon:
+                      _isMarking
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Icon(Icons.check_circle),
+                  label: Text(
+                    _isMarking ? 'Processing...' : 'MARK AS COLLECTED',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
