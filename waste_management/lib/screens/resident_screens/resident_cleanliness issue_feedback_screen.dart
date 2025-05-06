@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:waste_management/models/cleanlinessIssueModel.dart';
@@ -24,6 +26,7 @@ class _ResidentCleanlinessIssueFeedbackScreenState
   bool _isLoading = true;
   String _residentId = '';
   final Color primaryColor = const Color(0xFF59A867);
+  final Color accentColor = const Color(0xFF9C27B0); // Purple accent color
   int _currentIndex = 2; // Set to 2 since this is the "Notification" tab
 
   @override
@@ -104,7 +107,11 @@ class _ResidentCleanlinessIssueFeedbackScreenState
   }
 
   String _formatDate(DateTime dateTime) {
-    return DateFormat('d MMM yyyy').format(dateTime);
+    return DateFormat('MMM d, yyyy').format(dateTime);
+  }
+
+  String _formatDateWithTime(DateTime dateTime) {
+    return DateFormat('MMM d, yyyy • h:mm a').format(dateTime);
   }
 
   String _getTimeElapsed(DateTime resolvedTime) {
@@ -127,6 +134,22 @@ class _ResidentCleanlinessIssueFeedbackScreenState
     setState(() {
       _currentIndex = index;
     });
+    
+    // Navigate to appropriate screen based on the tab index
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/resident/home');
+        break;
+      case 1:
+        Navigator.pushReplacementNamed(context, '/resident/reports');
+        break;
+      case 2:
+        // Already on notifications screen
+        break;
+      case 3:
+        Navigator.pushReplacementNamed(context, '/resident/profile');
+        break;
+    }
   }
 
   @override
@@ -158,7 +181,7 @@ class _ResidentCleanlinessIssueFeedbackScreenState
                 onRefresh: _loadResolvedIssues,
                 color: primaryColor,
                 child: ListView.builder(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(16.0),
                   itemCount: _resolvedIssues.length,
                   itemBuilder: (context, index) {
                     final issue = _resolvedIssues[index];
@@ -206,6 +229,9 @@ class _ResidentCleanlinessIssueFeedbackScreenState
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -217,96 +243,180 @@ class _ResidentCleanlinessIssueFeedbackScreenState
     final resolvedTime = issue.resolvedTime ?? DateTime.now();
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12.0),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      margin: const EdgeInsets.only(bottom: 16.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: InkWell(
         onTap: () => _showIssueDetailsAndConfirmation(issue),
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(16.0),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header with title and status badge
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.check_circle,
-                      color: primaryColor,
-                      size: 28,
+                  // Issue description
+                  Expanded(
+                    child: Text(
+                      issue.description,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Issue Resolved',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          issue.description,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Location: ${issue.location}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (issue.assignedDriverName != null)
-                          Text(
-                            'Resolved by: ${issue.assignedDriverName}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                      ],
+                  // Status badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      'COMPLETED',
+                      style: TextStyle(
+                        color: accentColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              
+              const SizedBox(height: 16),
+              
+              // Request details
+              Row(
+                children: [
+                  Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Requested: ${_formatDateWithTime(issue.reportedTime)}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Location
+              Row(
+                children: [
+                  Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Location: ${issue.location}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Assigned driver
+              if (issue.assignedDriverName != null)
+                Row(
+                  children: [
+                    Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Resolved by: ${issue.assignedDriverName}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                
+              const SizedBox(height: 16),
+              
+              // Progress bar
+              LinearProgressIndicator(
+                value: 1.0,  // Always 100% for resolved issues
+                backgroundColor: Colors.grey[300],
+                color: accentColor,
+                minHeight: 4,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Status labels
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Requested',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Text(
+                      'Assigned',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Text(
+                      'Collected',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Text(
+                      'Completed',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Bottom row with time and action button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Time elapsed
                   Text(
                     _getTimeElapsed(resolvedTime),
                     style: TextStyle(
-                      fontSize: 12,
                       color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
+                      fontSize: 14,
                     ),
                   ),
-                  TextButton.icon(
+                  
+                  // Action button
+                  ElevatedButton(
                     onPressed: () => _showIssueDetailsAndConfirmation(issue),
-                    icon: const Icon(Icons.rate_review, size: 16),
-                    label: const Text('Confirm & Review'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: primaryColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
+                    child: const Text('Give Feedback'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
@@ -318,159 +428,255 @@ class _ResidentCleanlinessIssueFeedbackScreenState
       ),
     );
   }
-
+  
   void _showIssueDetailsAndConfirmation(CleanlinessIssueModel issue) {
+    int _rating = 0;
     final TextEditingController _feedbackController = TextEditingController();
-
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder:
-          (context) => Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Completed Issue Details',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Issue details
+                Text(
+                  issue.description,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Details grid
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildDetailRow('Requested', _formatDateWithTime(issue.reportedTime)),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Location', issue.location),
+                      if (issue.assignedDriverName != null) ...[
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Resolved by', issue.assignedDriverName!),
+                      ],
+                      if (issue.resolvedTime != null) ...[
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Completed', _formatDateWithTime(issue.resolvedTime!)),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Image preview (if available)
+                if (issue.imageUrl.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Confirm Resolution',
+                        'Image',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Issue Details',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    issue.description,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Location: ${issue.location}',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Reported: ${_formatDate(issue.reportedTime)}',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  if (issue.resolvedTime != null)
-                    Text(
-                      'Resolved: ${_formatDate(issue.resolvedTime!)}',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Provide Feedback (Optional)',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _feedbackController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Share your thoughts about the resolution...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.grey[700],
-                            side: BorderSide(color: Colors.grey[400]!),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            // Submit confirmation and feedback
-                            final success = await _cleanlinessService
-                                .updateResidentFeedback(
-                                  issueId: issue.id,
-                                  confirmed: true,
-                                  feedback: _feedbackController.text.trim(),
-                                );
-
-                            Navigator.pop(context);
-
-                            if (success) {
-                              // Show success message
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Thank you for confirming the resolution!',
-                                  ),
-                                  backgroundColor: Color(0xFF59A867),
-                                ),
-                              );
-                              // Refresh the list
-                              _loadResolvedIssues();
-                            } else {
-                              // Show error message
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Failed to submit feedback. Please try again.',
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(
+                          // Convert base64 to bytes if it's a base64 string
+                          Uri.parse(issue.imageUrl).data?.contentAsBytes() ?? 
+                              Uint8List(0),
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 100,
+                              width: double.infinity,
+                              color: Colors.grey[300],
+                              child: const Center(
+                                child: Text('Unable to load image'),
+                              ),
+                            );
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Confirm Resolution'),
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
                         ),
                       ),
+                      const SizedBox(height: 16),
                     ],
                   ),
-                ],
-              ),
+                
+                // Star rating
+                const Text(
+                  'Rate this resolution',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < _rating ? Icons.star : Icons.star_border,
+                        color: index < _rating ? Colors.amber : Colors.grey,
+                        size: 32,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _rating = index + 1;
+                        });
+                      },
+                    );
+                  }),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Feedback text field
+                const Text(
+                  'Additional Feedback (Optional)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                TextField(
+                  controller: _feedbackController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Tell us about your experience...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Submit button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _rating > 0 ? () async {
+                      // Submit the feedback
+                      final success = await _cleanlinessService.updateResidentFeedback(
+                        issueId: issue.id,
+                        confirmed: true,
+                        feedback: "${_rating} stars: ${_feedbackController.text}",
+                      );
+                      
+                      Navigator.pop(context);
+                      
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Thank you for your feedback!'),
+                            backgroundColor: primaryColor,
+                          ),
+                        );
+                        
+                        // Refresh the list
+                        _loadResolvedIssues();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to submit feedback. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } : null, // Disable button if no rating is selected
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      disabledBackgroundColor: Colors.grey[300],
+                    ),
+                    child: const Text(
+                      'Submit Feedback',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          '$label:',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }
