@@ -1481,11 +1481,26 @@ class RouteService {
     DateTime? startTime,
   }) async {
     try {
+      // Skip obviously invalid coordinates
+      if (position.latitude == 0.0 && position.longitude == 0.0) {
+        print(
+          'Warning: Skipping update with invalid coordinates (0,0) for route $routeId',
+        );
+        return;
+      }
+
+      print(
+        'Updating route progress for $routeId at position: ${position.latitude}, ${position.longitude}',
+      );
+
       Map<String, dynamic> data = {
         'routeId': routeId,
         'currentLat': position.latitude,
         'currentLng': position.longitude,
         'timestamp': FieldValue.serverTimestamp(),
+        'lastUpdated':
+            DateTime.now()
+                .toIso8601String(), // Add ISO timestamp for easier debugging
       };
 
       if (coveredPoints != null && coveredPoints.isNotEmpty) {
@@ -1503,6 +1518,9 @@ class RouteService {
 
       if (completionPercentage != null) {
         data['completionPercentage'] = completionPercentage;
+        print(
+          'Setting completion percentage for route $routeId: $completionPercentage%',
+        );
 
         // Also update the route document with the completion percentage
         await _firestore.collection('waste_routes').doc(routeId).update({
@@ -1523,6 +1541,10 @@ class RouteService {
 
           data['totalEstimatedTimeMinutes'] = estimatedTotalMinutes;
           data['remainingTimeMinutes'] = remainingMinutes;
+
+          print(
+            'Estimated completion time for route $routeId: $remainingMinutes minutes remaining',
+          );
         }
       }
 
@@ -1531,6 +1553,8 @@ class RouteService {
           .collection('route_progress')
           .doc(routeId)
           .set(data, SetOptions(merge: true));
+
+      print('Successfully updated progress for route $routeId');
 
       // If progress is 100%, automatically mark the route as completed
       if (completionPercentage != null && completionPercentage >= 100.0) {
@@ -1546,11 +1570,12 @@ class RouteService {
   Future<Map<String, dynamic>> getRouteTimeEstimation(String routeId) async {
     try {
       // Get the current progress data
-      DocumentSnapshot progressDoc = await _firestore.collection('route_progress').doc(routeId).get();
-      
+      DocumentSnapshot progressDoc =
+          await _firestore.collection('route_progress').doc(routeId).get();
+
       // Get the route data
       RouteModel? route = await getRoute(routeId);
-      
+
       if (!progressDoc.exists || route == null) {
         return {
           'completionPercentage': 0.0,
@@ -1559,52 +1584,59 @@ class RouteService {
           'estimatedCompletionTime': DateTime.now().add(Duration(hours: 1)),
         };
       }
-      
-      Map<String, dynamic> progressData = progressDoc.data() as Map<String, dynamic>;
-      
+
+      Map<String, dynamic> progressData =
+          progressDoc.data() as Map<String, dynamic>;
+
       // Get completion percentage
-      double completionPercentage = 
-          progressData['completionPercentage'] != null 
-              ? (progressData['completionPercentage'] as num).toDouble() 
+      double completionPercentage =
+          progressData['completionPercentage'] != null
+              ? (progressData['completionPercentage'] as num).toDouble()
               : 0.0;
-              
+
       // Get time estimates
-      double totalEstimatedTimeMinutes = 
-          progressData['totalEstimatedTimeMinutes'] != null 
-              ? (progressData['totalEstimatedTimeMinutes'] as num).toDouble() 
+      double totalEstimatedTimeMinutes =
+          progressData['totalEstimatedTimeMinutes'] != null
+              ? (progressData['totalEstimatedTimeMinutes'] as num).toDouble()
               : 60.0; // Default 1 hour
-              
-      double remainingTimeMinutes = 
-          progressData['remainingTimeMinutes'] != null 
-              ? (progressData['remainingTimeMinutes'] as num).toDouble() 
+
+      double remainingTimeMinutes =
+          progressData['remainingTimeMinutes'] != null
+              ? (progressData['remainingTimeMinutes'] as num).toDouble()
               : totalEstimatedTimeMinutes; // Default to total time
-      
+
       // Calculate estimated completion time
       DateTime now = DateTime.now();
-      DateTime estimatedCompletionTime = now.add(Duration(minutes: remainingTimeMinutes.round()));
-      
+      DateTime estimatedCompletionTime = now.add(
+        Duration(minutes: remainingTimeMinutes.round()),
+      );
+
       // If the route is active and has a start time, use that for more accurate estimates
       if (route.isActive && route.startedAt != null) {
         final elapsedMinutes = now.difference(route.startedAt!).inMinutes;
-        
+
         if (completionPercentage > 0) {
           // Recalculate total time based on current progress and elapsed time
-          totalEstimatedTimeMinutes = (elapsedMinutes / completionPercentage) * 100;
+          totalEstimatedTimeMinutes =
+              (elapsedMinutes / completionPercentage) * 100;
           remainingTimeMinutes = totalEstimatedTimeMinutes - elapsedMinutes;
-          
+
           // Update estimated completion time
-          estimatedCompletionTime = now.add(Duration(minutes: remainingTimeMinutes.round()));
+          estimatedCompletionTime = now.add(
+            Duration(minutes: remainingTimeMinutes.round()),
+          );
         }
       }
-      
+
       return {
         'completionPercentage': completionPercentage,
         'remainingTimeMinutes': remainingTimeMinutes,
         'totalEstimatedTimeMinutes': totalEstimatedTimeMinutes,
         'estimatedCompletionTime': estimatedCompletionTime,
-        'lastUpdated': progressData['timestamp'] != null 
-            ? (progressData['timestamp'] as Timestamp).toDate() 
-            : now,
+        'lastUpdated':
+            progressData['timestamp'] != null
+                ? (progressData['timestamp'] as Timestamp).toDate()
+                : now,
       };
     } catch (e) {
       print('Error getting route time estimation: $e');
@@ -1629,16 +1661,15 @@ class RouteService {
           .map((snapshot) {
             if (snapshot.exists && snapshot.data() != null) {
               final data = snapshot.data() as Map<String, dynamic>;
-              
+
               // Check if we have valid coordinates
-              if (data.containsKey('currentLat') && 
+              if (data.containsKey('currentLat') &&
                   data.containsKey('currentLng') &&
-                  data['currentLat'] != null && 
+                  data['currentLat'] != null &&
                   data['currentLng'] != null) {
-                
                 final lat = (data['currentLat'] as num).toDouble();
                 final lng = (data['currentLng'] as num).toDouble();
-                
+
                 return LatLng(lat, lng);
               }
             }
@@ -1655,114 +1686,140 @@ class RouteService {
     try {
       // Create a controller to manage our async operations properly
       final controller = StreamController<List<Map<String, dynamic>>>();
-      
+
       // Subscribe to the route changes
       final subscription = _firestore
           .collection('waste_routes')
           .where('isActive', isEqualTo: true)
           .where('isCancelled', isEqualTo: false)
           .snapshots()
-          .listen((snapshot) async {
-            try {
-              List<Map<String, dynamic>> activeRoutes = [];
-              
-              // Process each document
-              for (var doc in snapshot.docs) {
-                try {
-                  Map<String, dynamic> data = doc.data();
-                  
-                  // Convert timestamps
-                  data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-                  data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
-                  data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
-                  data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
-                  data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
-                  data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
-                  data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
-                  data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
-                  
-                  // Convert points
-                  _convertPointsData(data, 'coveragePoints');
-                  _convertPointsData(data, 'actualDirectionPath');
-                  
-                  // Convert schedule times
-                  if (data['scheduleStartTime'] != null) {
-                    data['scheduleStartTime'] = {
-                      'hour': data['scheduleStartTime']['hour'] ?? 8,
-                      'minute': data['scheduleStartTime']['minute'] ?? 0,
-                    };
-                  }
-                  
-                  if (data['scheduleEndTime'] != null) {
-                    data['scheduleEndTime'] = {
-                      'hour': data['scheduleEndTime']['hour'] ?? 17,
-                      'minute': data['scheduleEndTime']['minute'] ?? 0,
-                    };
-                  }
-                  
-                  final route = RouteModel.fromMap(data);
-                  
-                  // Get current progress data for this route
-                  DocumentSnapshot routeDoc = await _firestore.collection('route_progress').doc(route.id).get();
-                  double completionPercentage = 0.0;
-                  LatLng? currentPosition;
-                  
-                  if (routeDoc.exists && routeDoc.data() != null) {
-                    final progressData = routeDoc.data() as Map<String, dynamic>;
-                    
-                    if (progressData['completionPercentage'] != null) {
-                      completionPercentage = (progressData['completionPercentage'] as num).toDouble();
+          .listen(
+            (snapshot) async {
+              try {
+                List<Map<String, dynamic>> activeRoutes = [];
+
+                // Process each document
+                for (var doc in snapshot.docs) {
+                  try {
+                    Map<String, dynamic> data = doc.data();
+
+                    // Convert timestamps
+                    data['createdAt'] =
+                        (data['createdAt'] as Timestamp?)?.toDate() ??
+                        DateTime.now();
+                    data['startedAt'] =
+                        (data['startedAt'] as Timestamp?)?.toDate();
+                    data['pausedAt'] =
+                        (data['pausedAt'] as Timestamp?)?.toDate();
+                    data['resumedAt'] =
+                        (data['resumedAt'] as Timestamp?)?.toDate();
+                    data['completedAt'] =
+                        (data['completedAt'] as Timestamp?)?.toDate();
+                    data['cancelledAt'] =
+                        (data['cancelledAt'] as Timestamp?)?.toDate();
+                    data['nextScheduledStart'] =
+                        (data['nextScheduledStart'] as Timestamp?)?.toDate();
+                    data['lastCompleted'] =
+                        (data['lastCompleted'] as Timestamp?)?.toDate();
+
+                    // Convert points
+                    _convertPointsData(data, 'coveragePoints');
+                    _convertPointsData(data, 'actualDirectionPath');
+
+                    // Convert schedule times
+                    if (data['scheduleStartTime'] != null) {
+                      data['scheduleStartTime'] = {
+                        'hour': data['scheduleStartTime']['hour'] ?? 8,
+                        'minute': data['scheduleStartTime']['minute'] ?? 0,
+                      };
                     }
-                    
-                    if (progressData['currentLat'] != null && progressData['currentLng'] != null) {
-                      final lat = (progressData['currentLat'] as num).toDouble();
-                      final lng = (progressData['currentLng'] as num).toDouble();
-                      currentPosition = LatLng(lat, lng);
+
+                    if (data['scheduleEndTime'] != null) {
+                      data['scheduleEndTime'] = {
+                        'hour': data['scheduleEndTime']['hour'] ?? 17,
+                        'minute': data['scheduleEndTime']['minute'] ?? 0,
+                      };
                     }
+
+                    final route = RouteModel.fromMap(data);
+
+                    // Get current progress data for this route
+                    DocumentSnapshot routeDoc =
+                        await _firestore
+                            .collection('route_progress')
+                            .doc(route.id)
+                            .get();
+                    double completionPercentage = 0.0;
+                    LatLng? currentPosition;
+
+                    if (routeDoc.exists && routeDoc.data() != null) {
+                      final progressData =
+                          routeDoc.data() as Map<String, dynamic>;
+
+                      if (progressData['completionPercentage'] != null) {
+                        completionPercentage =
+                            (progressData['completionPercentage'] as num)
+                                .toDouble();
+                      }
+
+                      if (progressData['currentLat'] != null &&
+                          progressData['currentLng'] != null) {
+                        final lat =
+                            (progressData['currentLat'] as num).toDouble();
+                        final lng =
+                            (progressData['currentLng'] as num).toDouble();
+                        currentPosition = LatLng(lat, lng);
+                      }
+                    }
+
+                    // If no current position found, use the route start position
+                    if (currentPosition == null) {
+                      currentPosition = LatLng(route.startLat, route.startLng);
+                    }
+
+                    // Get time estimation for more accurate completion data
+                    final timeEstimation = await getRouteTimeEstimation(
+                      route.id,
+                    );
+
+                    activeRoutes.add({
+                      'route': route,
+                      'currentPosition': currentPosition,
+                      'completionPercentage': completionPercentage,
+                      'estimatedCompletionTime':
+                          timeEstimation['estimatedCompletionTime'],
+                      'remainingTimeMinutes':
+                          timeEstimation['remainingTimeMinutes'],
+                    });
+                  } catch (e) {
+                    print('Error parsing document ${doc.id}: $e');
                   }
-                  
-                  // If no current position found, use the route start position
-                  if (currentPosition == null) {
-                    currentPosition = LatLng(route.startLat, route.startLng);
-                  }
-                  
-                  // Get time estimation for more accurate completion data
-                  final timeEstimation = await getRouteTimeEstimation(route.id);
-                  
-                  activeRoutes.add({
-                    'route': route,
-                    'currentPosition': currentPosition,
-                    'completionPercentage': completionPercentage,
-                    'estimatedCompletionTime': timeEstimation['estimatedCompletionTime'],
-                    'remainingTimeMinutes': timeEstimation['remainingTimeMinutes'],
-                  });
-                } catch (e) {
-                  print('Error parsing document ${doc.id}: $e');
+                }
+
+                // Add results to the stream if the controller is still active
+                if (!controller.isClosed) {
+                  controller.add(activeRoutes);
+                }
+              } catch (e) {
+                print('Error processing route documents: $e');
+                if (!controller.isClosed) {
+                  controller.addError(e);
                 }
               }
-              
-              // Add results to the stream if the controller is still active
-              if (!controller.isClosed) {
-                controller.add(activeRoutes);
-              }
-            } catch (e) {
-              print('Error processing route documents: $e');
+            },
+            onError: (e) {
+              print('Error in Firestore query: $e');
               if (!controller.isClosed) {
                 controller.addError(e);
               }
-            }
-          }, onError: (e) {
-            print('Error in Firestore query: $e');
-            if (!controller.isClosed) {
-              controller.addError(e);
-            }
-          });
-      
+            },
+          );
+
       // Make sure to clean up when the stream is cancelled
       controller.onCancel = () {
         subscription.cancel();
       };
-      
+
       return controller.stream;
     } catch (e) {
       print('Error setting up active routes stream: $e');
@@ -1773,30 +1830,33 @@ class RouteService {
   // Get driver's active route
   Future<RouteModel?> getDriverActiveRoute(String driverId) async {
     try {
-      final snapshot = await _firestore
-          .collection('waste_routes')
-          .where('assignedDriverId', isEqualTo: driverId)
-          .where('isActive', isEqualTo: true)
-          .where('isCancelled', isEqualTo: false)
-          .limit(1)
-          .get();
-      
+      final snapshot =
+          await _firestore
+              .collection('waste_routes')
+              .where('assignedDriverId', isEqualTo: driverId)
+              .where('isActive', isEqualTo: true)
+              .where('isCancelled', isEqualTo: false)
+              .limit(1)
+              .get();
+
       if (snapshot.docs.isEmpty) {
         return null;
       }
-      
+
       Map<String, dynamic> data = snapshot.docs.first.data();
-      
+
       // Convert timestamps
-      data['createdAt'] = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+      data['createdAt'] =
+          (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
       data['startedAt'] = (data['startedAt'] as Timestamp?)?.toDate();
       data['pausedAt'] = (data['pausedAt'] as Timestamp?)?.toDate();
       data['resumedAt'] = (data['resumedAt'] as Timestamp?)?.toDate();
       data['completedAt'] = (data['completedAt'] as Timestamp?)?.toDate();
       data['cancelledAt'] = (data['cancelledAt'] as Timestamp?)?.toDate();
-      data['nextScheduledStart'] = (data['nextScheduledStart'] as Timestamp?)?.toDate();
+      data['nextScheduledStart'] =
+          (data['nextScheduledStart'] as Timestamp?)?.toDate();
       data['lastCompleted'] = (data['lastCompleted'] as Timestamp?)?.toDate();
-      
+
       // Convert schedule times
       if (data['scheduleStartTime'] != null) {
         data['scheduleStartTime'] = {
@@ -1804,18 +1864,18 @@ class RouteService {
           'minute': data['scheduleStartTime']['minute'] ?? 0,
         };
       }
-      
+
       if (data['scheduleEndTime'] != null) {
         data['scheduleEndTime'] = {
           'hour': data['scheduleEndTime']['hour'] ?? 17,
           'minute': data['scheduleEndTime']['minute'] ?? 0,
         };
       }
-      
+
       // Convert points
       _convertPointsData(data, 'coveragePoints');
       _convertPointsData(data, 'actualDirectionPath');
-      
+
       return RouteModel.fromMap(data);
     } catch (e) {
       print('Error getting driver active route: $e');
@@ -1826,16 +1886,90 @@ class RouteService {
   // Get route progress state
   Future<Map<String, dynamic>?> getRouteProgressState(String routeId) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('route_progress').doc(routeId).get();
-      
+      print('Fetching route progress state for routeId: $routeId');
+      DocumentSnapshot doc =
+          await _firestore.collection('route_progress').doc(routeId).get();
+
       if (doc.exists) {
-        return doc.data() as Map<String, dynamic>;
+        final data = doc.data() as Map<String, dynamic>;
+
+        // Log the position data for debugging
+        if (data.containsKey('currentLat') && data.containsKey('currentLng')) {
+          final lat = data['currentLat'];
+          final lng = data['currentLng'];
+          print('Found position for route $routeId: $lat, $lng');
+
+          // Validate coordinates
+          if (lat == 0.0 && lng == 0.0) {
+            print('Warning: Zero coordinates found for route $routeId');
+          }
+
+          // Check for last update timestamp
+          final timestamp = data['lastUpdated'];
+          if (timestamp != null) {
+            final lastUpdate = DateTime.parse(timestamp);
+            final now = DateTime.now();
+            final difference = now.difference(lastUpdate);
+            print('Position is ${difference.inSeconds} seconds old');
+
+            // Flag potentially stale data
+            if (difference.inMinutes > 10) {
+              print('WARNING: Position data is more than 10 minutes old!');
+            }
+          }
+        } else {
+          print('Position data missing for route $routeId');
+        }
+
+        return data;
+      } else {
+        print('No progress document found for route $routeId');
       }
-      
+
       return null;
     } catch (e) {
-      print('Error getting route progress state: $e');
+      print('Error getting route progress state for route $routeId: $e');
       return null;
     }
+  }
+
+  // Listen for real-time updates to route progress
+  Stream<Map<String, dynamic>?> listenToRouteProgress(String routeId) {
+    print('Setting up real-time listener for route progress: $routeId');
+
+    return _firestore.collection('route_progress').doc(routeId).snapshots().map(
+      (snapshot) {
+        if (snapshot.exists) {
+          final data = snapshot.data() as Map<String, dynamic>;
+
+          // Log the position data for debugging
+          if (data.containsKey('currentLat') &&
+              data.containsKey('currentLng')) {
+            final lat = data['currentLat'];
+            final lng = data['currentLng'];
+            print('Real-time update for route $routeId: $lat, $lng');
+
+            // Validate coordinates
+            if (lat == 0.0 && lng == 0.0) {
+              print(
+                'Warning: Ignoring zero coordinates update for route $routeId',
+              );
+              // Return null to indicate invalid data
+              return null;
+            }
+          } else {
+            print(
+              'Position data missing in real-time update for route $routeId',
+            );
+            return null;
+          }
+
+          return data;
+        }
+
+        print('No document in real-time update for route $routeId');
+        return null;
+      },
+    );
   }
 }

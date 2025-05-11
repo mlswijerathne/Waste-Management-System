@@ -31,7 +31,6 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
   Map<String, Animation<LatLng>> _animations = {};
   BitmapDescriptor? _truckIcon;
   BitmapDescriptor? _activeTruckIcon;
-
   int _activeDriverCount = 0;
   List<Map<String, dynamic>> _allRoutes = [];
   Map<String, dynamic>? _selectedDriver;
@@ -47,26 +46,113 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
     ), // Default coordinates for Colombo, Sri Lanka
     zoom: 12,
   );
-
-  // This variable tracks which route ID we're currently following
-  String? _followingRouteId;
-  GoogleMapController? _cameraController;
-
   @override
   void initState() {
     super.initState();
+    print('Initializing AdminActiveDriversScreen');
     _loadCustomIcons();
+
+    // First, subscribe to routes
     _subscribeToRoutes();
+
+    // Perform multiple location refreshes at startup to ensure we get the latest data
+    // Immediate refresh
+    Future.delayed(const Duration(milliseconds: 500), () {
+      print('Initial location data refresh (500ms)');
+      _refreshLocationData();
+    });
+
+    // Second refresh after 2 seconds
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      print('Secondary location data refresh (2s)');
+      _refreshLocationData();
+    });
+
+    // Third refresh after 5 seconds
+    Future.delayed(const Duration(milliseconds: 5000), () {
+      print('Final startup location data refresh (5s)');
+      _refreshLocationData();
+    });
+
+    // Start periodic updates
     _startLocationUpdates();
   }
 
   @override
   void dispose() {
     _locationUpdateTimer?.cancel();
+
+    // Cancel all route progress listeners
+    for (var subscription in _progressListeners.values) {
+      subscription.cancel();
+    }
+    _progressListeners.clear();
+
     for (var controller in _animationControllers.values) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _updateRouteWithRealTimeData(
+    String routeId,
+    Map<String, dynamic> progressData,
+  ) {
+    if (!mounted) return;
+
+    // Find the route in our list
+    final routeIndex = _allRoutes.indexWhere(
+      (data) => data['route'].id == routeId,
+    );
+    if (routeIndex < 0) {
+      print('Route $routeId not found in active routes list');
+      return;
+    }
+
+    // Get the new position
+    final lat = (progressData['currentLat'] as num).toDouble();
+    final lng = (progressData['currentLng'] as num).toDouble();
+    final newPosition = LatLng(lat, lng);
+
+    print('Updating route $routeId with real-time position: $lat, $lng');
+
+    // Update the route data in our list
+    setState(() {
+      final updatedRouteData = Map<String, dynamic>.from(
+        _allRoutes[routeIndex],
+      );
+      updatedRouteData['currentPosition'] = newPosition;
+
+      // Update completion percentage if available
+      if (progressData['completionPercentage'] != null) {
+        updatedRouteData['completionPercentage'] =
+            progressData['completionPercentage'];
+      }
+
+      // Update remaining time if available
+      if (progressData['remainingTimeMinutes'] != null) {
+        updatedRouteData['remainingTimeMinutes'] =
+            progressData['remainingTimeMinutes'];
+      }
+
+      // Update estimated completion time if available
+      if (progressData['estimatedCompletionTime'] != null) {
+        updatedRouteData['estimatedCompletionTime'] =
+            progressData['estimatedCompletionTime'];
+      }
+
+      _allRoutes[routeIndex] = updatedRouteData;
+    });
+
+    // Update markers with the new position
+    _updateMarkers();
+
+    // If we're following this truck, update the camera position
+    if (_followSelectedTruck &&
+        _selectedDriver != null &&
+        _selectedDriver!['route'].id == routeId) {
+      _updateCameraIfFollowing();
+    }
   }
 
   Future<void> _loadCustomIcons() async {
@@ -129,121 +215,271 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
   }
 
   void _subscribeToRoutes() {
+    // Listen for active routes with driver information
     _routeService.getActiveRoutesWithDriverInfo().listen((routes) {
-      setState(() {
-        _allRoutes = routes;
-        _updateMarkers();
-      });
+      if (mounted) {
+        setState(() {
+          _allRoutes = routes;
+          _updateMarkers();
+
+          // Set up real-time listeners for each route's location
+          _setupRouteProgressListeners(routes);
+        });
+      }
     });
   }
 
+  // Map to store active progress listeners
+  Map<String, StreamSubscription> _progressListeners = {};
+
+  void _setupRouteProgressListeners(List<Map<String, dynamic>> routes) {
+    // First, cancel any listeners for routes that are no longer active
+    final activeRouteIds = routes.map((r) => r['route'].id).toSet();
+    _progressListeners.keys.toList().forEach((routeId) {
+      if (!activeRouteIds.contains(routeId)) {
+        print('Cancelling listener for inactive route $routeId');
+        _progressListeners[routeId]?.cancel();
+        _progressListeners.remove(routeId);
+      }
+    });
+
+    // Now set up listeners for all active routes
+    for (var routeData in routes) {
+      final routeId = routeData['route'].id;
+
+      // Skip if we already have a listener for this route
+      if (_progressListeners.containsKey(routeId)) continue;
+
+      print('Setting up real-time listener for route $routeId');
+
+      // Create a real-time listener for this route's progress
+      final listener = _routeService.listenToRouteProgress(routeId).listen((
+        progressData,
+      ) {
+        if (progressData != null && mounted) {
+          // Update the route data with real-time position
+          _updateRouteWithRealTimeData(routeId, progressData);
+        }
+      });
+
+      _progressListeners[routeId] = listener;
+    }
+  }
+
   void _startLocationUpdates() {
-    // Set up a timer to periodically refresh location data
+    // Set up a timer to periodically refresh location data as a fallback
     _locationUpdateTimer = Timer.periodic(
       Duration(seconds: _updateIntervalSeconds),
-      (_) => _refreshLocationData(),
+      (_) {
+        // Force a location refresh in case the real-time listeners missed any updates
+        _refreshLocationData();
+
+        // Log a debug message every update interval
+        print('Periodic location refresh triggered (fallback mechanism)');
+
+        // Check if markers need updating
+        print(
+          'Active route count: ${_allRoutes.length}, Marker count: ${_markers.length}',
+        );
+
+        // Every 30 seconds, check for stale position data
+        final now = DateTime.now();
+        if (now.second % 30 == 0) {
+          _checkForStalePositionData();
+        }
+      },
     );
   }
 
-  Future<void> _refreshLocationData() async {
-    // Manually refresh the location data for each active route
-    if (_allRoutes.isNotEmpty) {
-      List<Map<String, dynamic>> refreshedRoutes = [];
+  void _checkForStalePositionData() {
+    print('Checking for stale position data at ${DateTime.now()}');
 
-      for (var routeData in _allRoutes) {
-        final route = routeData['route'];
+    for (var routeData in _allRoutes) {
+      final route = routeData['route'];
+      final routeId = route.id;
 
-        try {
-          // Get the latest position data for this route
-          final progressDoc = await _routeService.getRouteProgressState(
-            route.id,
-          );
-
-          if (progressDoc != null &&
-              progressDoc['currentLat'] != null &&
-              progressDoc['currentLng'] != null) {
-            final newPosition = LatLng(
-              progressDoc['currentLat'],
-              progressDoc['currentLng'],
-            );
-
-            // Get route time estimation for more accurate completion data
-            final timeEstimation = await _routeService.getRouteTimeEstimation(
-              route.id,
-            );
-
-            refreshedRoutes.add({
-              'route': route,
-              'currentPosition': newPosition,
-              'completionPercentage':
-                  progressDoc['completionPercentage'] ??
-                  timeEstimation['completionPercentage'] ??
-                  0.0,
-              'estimatedCompletionTime':
-                  timeEstimation['estimatedCompletionTime'],
-              'remainingTimeMinutes': timeEstimation['remainingTimeMinutes'],
-            });
-          } else {
-            // Keep existing position data if we couldn't get new data
-            refreshedRoutes.add(routeData);
-          }
-        } catch (e) {
-          print('Error refreshing location for route ${route.id}: $e');
-          // Keep existing data in case of error
-          refreshedRoutes.add(routeData);
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _allRoutes = refreshedRoutes;
-          _updateMarkers();
-        });
-
-        // If following a truck, update the camera position
-        if (_followSelectedTruck && _selectedDriver != null) {
-          _updateCameraIfFollowing();
-        }
+      // Check if we have a real-time listener for this route
+      if (!_progressListeners.containsKey(routeId)) {
+        print('Warning: No real-time listener for active route $routeId');
       }
     }
   }
 
-  DateTime? _calculateEstimatedCompletion(
-    double completionPercentage,
-    double totalMinutes,
-  ) {
-    if (totalMinutes <= 0 || completionPercentage >= 100) return null;
+  Future<void> _refreshLocationData() async {
+    // Manually refresh the location data for each active route
+    if (_allRoutes.isEmpty) {
+      print('No active routes to refresh');
+      return;
+    }
 
-    final remainingMinutes = totalMinutes * (1 - (completionPercentage / 100));
-    return DateTime.now().add(Duration(minutes: remainingMinutes.toInt()));
-  }
+    print('Refreshing location data for ${_allRoutes.length} active routes');
+    List<Map<String, dynamic>> refreshedRoutes = [];
 
-  int _calculateRemainingTime(
-    double completionPercentage,
-    double totalMinutes,
-  ) {
-    if (totalMinutes <= 0 || completionPercentage >= 100) return 0;
+    for (var routeData in _allRoutes) {
+      final route = routeData['route'];
+      print('Refreshing route ${route.id} (${route.name})');
+      try {
+        // Get the latest position data for this route
+        final progressDoc = await _routeService.getRouteProgressState(route.id);
 
-    final remainingMinutes = totalMinutes * (1 - (completionPercentage / 100));
-    return remainingMinutes.toInt();
+        // Debug the progress document
+        if (progressDoc != null) {
+          print('Route ${route.id} progress: $progressDoc');
+
+          // Check for data freshness by examining timestamp
+          String? timestampStr = progressDoc['lastUpdated'] as String?;
+          if (timestampStr != null) {
+            try {
+              final timestamp = DateTime.parse(timestampStr);
+              final now = DateTime.now();
+              final difference = now.difference(timestamp);
+
+              print(
+                'Route ${route.id} data is ${difference.inSeconds} seconds old',
+              );
+
+              // Flag stale data but still use it if it's the best we have
+              if (difference.inMinutes > 10) {
+                print(
+                  'WARNING: Route ${route.id} data is more than 10 minutes old',
+                );
+              }
+            } catch (e) {
+              print('Error parsing timestamp: $e');
+            }
+          } else {
+            print('No timestamp in route ${route.id} progress data');
+          }
+        } else {
+          print('No progress data found for route ${route.id}');
+        }
+
+        // Check if we have valid position data
+        if (progressDoc != null &&
+            progressDoc['currentLat'] != null &&
+            progressDoc['currentLng'] != null) {
+          final lat = (progressDoc['currentLat'] as num).toDouble();
+          final lng = (progressDoc['currentLng'] as num).toDouble();
+
+          // Validate coordinates (skip obviously invalid values like 0,0)
+          if (lat == 0.0 && lng == 0.0) {
+            print('Ignoring invalid coordinates (0,0) for route ${route.id}');
+            // Keep existing position data
+            refreshedRoutes.add(routeData);
+            continue;
+          }
+
+          // Also check for other obviously invalid coordinates
+          if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            print(
+              'Ignoring invalid coordinates ($lat,$lng) for route ${route.id}',
+            );
+            // Keep existing position data
+            refreshedRoutes.add(routeData);
+            continue;
+          }
+
+          final newPosition = LatLng(lat, lng);
+          print('Updated position for route ${route.id}: $lat, $lng');
+
+          // Get route time estimation for more accurate completion data
+          final timeEstimation = await _routeService.getRouteTimeEstimation(
+            route.id,
+          );
+
+          refreshedRoutes.add({
+            'route': route,
+            'currentPosition': newPosition,
+            'completionPercentage':
+                progressDoc['completionPercentage'] ??
+                timeEstimation['completionPercentage'] ??
+                0.0,
+            'estimatedCompletionTime':
+                timeEstimation['estimatedCompletionTime'],
+            'remainingTimeMinutes': timeEstimation['remainingTimeMinutes'],
+          });
+        } else {
+          print(
+            'No valid position data for route ${route.id}, using existing data',
+          );
+          // Keep existing position data if we couldn't get new data
+          refreshedRoutes.add(routeData);
+        }
+      } catch (e) {
+        print('Error refreshing location for route ${route.id}: $e');
+        // Keep existing data in case of error
+        refreshedRoutes.add(routeData);
+      }
+    }
+
+    if (mounted) {
+      print('Updating UI with ${refreshedRoutes.length} routes');
+      setState(() {
+        _allRoutes = refreshedRoutes;
+        _updateMarkers();
+      });
+
+      // If following a truck, update the camera position
+      if (_followSelectedTruck && _selectedDriver != null) {
+        _updateCameraIfFollowing();
+      }
+    }
   }
 
   void _updateCameraIfFollowing() {
-    if (_followingRouteId != null && _cameraController != null) {
+    if (_selectedDriver != null && _followSelectedTruck) {
+      final routeId = _selectedDriver!['route'].id;
+
+      print('Trying to follow truck for route $routeId');
+
       // Find the route we're currently following
       final routeData = _allRoutes.firstWhere(
-        (data) => data['route'].id == _followingRouteId,
+        (data) => data['route'].id == routeId,
         orElse:
             () => Map<String, dynamic>(), // Return empty map instead of null
       );
 
       // If we found the route and it has a current position, update the camera
       if (routeData.isNotEmpty && routeData['currentPosition'] != null) {
-        _cameraController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: routeData['currentPosition'], zoom: 15.0),
-          ),
+        final position = routeData['currentPosition'] as LatLng;
+
+        // Validate position - don't follow obviously invalid coordinates
+        if (position.latitude == 0.0 && position.longitude == 0.0) {
+          print('Cannot follow truck: invalid coordinates (0,0)');
+          return;
+        }
+
+        print(
+          'Following truck at position: ${position.latitude}, ${position.longitude}',
         );
+
+        // Calculate bearing based on previous position if available
+        final String routeId = _selectedDriver!['route'].id;
+        final LatLng? previousPosition = _lastPositions[routeId];
+        final double bearing =
+            previousPosition != null
+                ? _calculateBearing(previousPosition, position)
+                : 0.0;
+
+        _controller.future
+            .then((controller) {
+              // Use a smoother camera animation for better UX
+              controller.animateCamera(
+                CameraUpdate.newCameraPosition(
+                  CameraPosition(
+                    target: position,
+                    zoom: 16.5, // Slightly higher zoom for better visibility
+                    bearing: bearing, // Orient map in direction of travel
+                    tilt: 45.0, // Add some tilt for a better perspective
+                  ),
+                ),
+              );
+            })
+            .catchError((error) {
+              print('Error animating camera: $error');
+            });
+      } else {
+        print('Cannot follow truck: position data not available');
       }
     }
   }
@@ -372,7 +608,6 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
       _selectedDriver = driverData;
     });
 
-    final route = driverData['route'];
     final pos = driverData['currentPosition'];
 
     if (pos != null && _mapCreated) {

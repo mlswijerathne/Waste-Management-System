@@ -214,13 +214,50 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
               'Live position update: ${position.latitude}, ${position.longitude}',
             );
 
+            // Always update the UI with new position
             setState(() {
               _currentPosition = newPosition;
               _updateTruckMarker(newPosition);
             });
 
-            _updateRouteProgress(newPosition);
+            // Check if the position has changed enough to warrant a Firestore update
+            // Only filter positions for Firestore updates, always update local UI
+            bool shouldUpdateFirestore = true;
 
+            if (_lastReportedPosition != null) {
+              final distance = Geolocator.distanceBetween(
+                _lastReportedPosition!.latitude,
+                _lastReportedPosition!.longitude,
+                newPosition.latitude,
+                newPosition.longitude,
+              );
+
+              // Only update Firestore if moved more than 10 meters or every 15 seconds
+              final locationUpdateThreshold = 10.0; // meters
+              final timeSinceLastUpdate =
+                  _lastLocationUpdateTime != null
+                      ? DateTime.now().difference(_lastLocationUpdateTime!)
+                      : Duration(seconds: 16);
+
+              if (distance < locationUpdateThreshold &&
+                  timeSinceLastUpdate.inSeconds < 15) {
+                shouldUpdateFirestore = false;
+                print(
+                  'Skipping Firestore update (distance: ${distance.toStringAsFixed(1)}m, '
+                  'time since last: ${timeSinceLastUpdate.inSeconds}s)',
+                );
+              }
+            }
+
+            // Update Firestore only if needed
+            if (shouldUpdateFirestore) {
+              _updateRouteProgress(newPosition);
+              _lastLocationUpdateTime = DateTime.now();
+
+              print('Updating Firestore with new position');
+            }
+
+            // Always update map camera to follow truck
             if (_isMapReady && _mapController != null) {
               _mapController?.animateCamera(
                 CameraUpdate.newLatLng(newPosition),
@@ -253,6 +290,16 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
   void _updateRouteProgress(LatLng position) {
     if (!_route.isActive || _route.isPaused) return;
 
+    // Validate position data - skip invalid coordinates
+    if (position.latitude == 0.0 && position.longitude == 0.0) {
+      print('Warning: Ignoring invalid coordinates (0,0) for position update');
+      return;
+    }
+
+    print(
+      'Updating route progress with position: ${position.latitude}, ${position.longitude}',
+    );
+
     double minDistance = double.infinity;
     int closestPointIndex = 0;
 
@@ -279,16 +326,38 @@ class _DriverRouteDetailScreenState extends State<DriverRouteDetailScreen> {
         (closestPointIndex * 100) / _route.actualDirectionPath.length;
     completionPercentage = min(completionPercentage, 100.0);
 
+    // Create a list of recently covered points
+    List<LatLng> recentCoveredPoints = [];
+    if (_lastReportedPosition != null) {
+      recentCoveredPoints.add(_lastReportedPosition!);
+    }
+    recentCoveredPoints.add(position);
+
+    // Store this position as the last reported position
+    _lastReportedPosition = position;
+
+    print(
+      'Sending location update to Firebase with completion: ${completionPercentage.toStringAsFixed(2)}%',
+    );
+
+    // Include the route start time for better time estimations
     _routeService.updateRouteProgress(
       _route.id,
       position,
+      coveredPoints: recentCoveredPoints,
       completionPercentage: completionPercentage,
+      startTime:
+          _route.startedAt, // Include route start time for better estimations
     );
 
     setState(() {
       _route = _route.copyWith(currentProgressPercentage: completionPercentage);
     });
   }
+
+  // Track last reported position and update time for route progress
+  LatLng? _lastReportedPosition;
+  DateTime? _lastLocationUpdateTime;
 
   void _updateTruckMarker(LatLng position) {
     if (position.latitude == 0.0 && position.longitude == 0.0) {
