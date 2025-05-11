@@ -35,27 +35,20 @@ class  AdminNavbar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: BottomNavigationBar(
-            currentIndex: currentIndex,
-            onTap: (index) {
-
-                if (index == 0) {
-                // If already on home, just update the index
-                onTap(index);
-                // If coming from a different tab, navigate to home
-                if (currentIndex != 0) {
-                  Navigator.pushNamed(context, '/admin_home');
-                }
-              } else if (index == 1) {
-                // Navigate to reports without updating index
-                Navigator.pushNamed(context, '/admin_active_drivers_screen');
-              } else if (index == 2) {
-                // Navigate to notifications without updating index
-                Navigator.pushNamed(context, '/admin_cleanliness_issue_list');
-              } else if (index == 3) {
-                // Navigate to profile without updating index
-                Navigator.pushNamed(context, '/admin_breakdown'); 
+            currentIndex: currentIndex,            onTap: (index) {
+              // First update the index to show the selected tab
+              onTap(index);
+              
+              // Then navigate to appropriate screen if not already there
+              if (index == 0 && currentIndex != 0) {
+                Navigator.pushReplacementNamed(context, '/admin_home');
+              } else if (index == 1 && currentIndex != 1) {
+                Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
+              } else if (index == 2 && currentIndex != 2) {
+                Navigator.pushReplacementNamed(context, '/admin_cleanliness_issue_list');
+              } else if (index == 3 && currentIndex != 3) {
+                Navigator.pushReplacementNamed(context, '/admin_breakdown');
               }
-
             },
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,

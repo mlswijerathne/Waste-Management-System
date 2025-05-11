@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:waste_management/service/route_service.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import 'package:waste_management/widgets/admin_navbar.dart';
 
 class AdminActiveDriversScreen extends StatefulWidget {
   const AdminActiveDriversScreen({Key? key}) : super(key: key);
@@ -18,10 +19,8 @@ class AdminActiveDriversScreen extends StatefulWidget {
 }
 
 class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
-    with TickerProviderStateMixin {
-  final RouteService _routeService = RouteService();
-  final Completer<GoogleMapController> _controller = Completer();
-  final Color primaryColor = const Color(0xFF59A867);
+    with TickerProviderStateMixin {  final RouteService _routeService = RouteService();
+  final Completer<GoogleMapController> _controller = Completer();  final Color primaryColor = const Color(0xFF59A867);
   bool _mapCreated = false;
   Timer? _locationUpdateTimer;
 
@@ -659,8 +658,7 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) {    return Scaffold(
       appBar: AppBar(
         title: Text('Active Drivers (${_activeDriverCount})'),
         backgroundColor: primaryColor,
@@ -673,6 +671,20 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
             tooltip: 'Refresh Locations',
           ),
         ],
+      ),      bottomNavigationBar: AdminNavbar(
+        currentIndex: 1, // Always 1 for this screen
+        onTap: (index) {
+          if (index != 1) {
+            // Only navigate if not already on this tab
+            if (index == 0) {
+              Navigator.pushReplacementNamed(context, '/admin_home');
+            } else if (index == 2) {
+              Navigator.pushReplacementNamed(context, '/admin_cleanliness_issue_list');
+            } else if (index == 3) {
+              Navigator.pushReplacementNamed(context, '/admin_breakdown');
+            }
+          }
+        },
       ),
       body: Column(
         children: [
@@ -1129,9 +1141,7 @@ class _AdminActiveDriversScreenState extends State<AdminActiveDriversScreen>
                 ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 24),
+          ),          const SizedBox(height: 24),
         ],
       ),
     );

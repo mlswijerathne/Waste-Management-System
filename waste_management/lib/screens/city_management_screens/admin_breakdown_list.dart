@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:waste_management/models/breakdownReportModel.dart';
 import 'package:waste_management/screens/city_management_screens/admin_breakdown_view.dart';
 import 'package:waste_management/models/userModel.dart';
+import 'package:waste_management/widgets/admin_navbar.dart';
 
 class AdminBreakdownListScreen extends StatefulWidget {
   const AdminBreakdownListScreen({Key? key}) : super(key: key);
@@ -13,10 +14,10 @@ class AdminBreakdownListScreen extends StatefulWidget {
       _AdminBreakdownListScreenState();
 }
 
-class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isLoading = true;
   List<Map<String, dynamic>> _breakdownReports = [];
+  int _currentIndex = 3; // Set to 3 for breakdown tab
 
   @override
   void initState() {
@@ -75,8 +76,7 @@ class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(      appBar: AppBar(
         title: const Text('Breakdown Reports'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -87,6 +87,20 @@ class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {
             onPressed: _fetchBreakdownReports,
           ),
         ],
+      ),      bottomNavigationBar: AdminNavbar(
+        currentIndex: 3, 
+        onTap: (index) {
+          if (index != 3) {
+            // Only navigate if not already on this tab
+            if (index == 0) {
+              Navigator.pushReplacementNamed(context, '/admin_home');
+            } else if (index == 1) {
+              Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
+            } else if (index == 2) {
+              Navigator.pushReplacementNamed(context, '/admin_cleanliness_issue_list');
+            }
+          }
+        },
       ),
       body:
           _isLoading

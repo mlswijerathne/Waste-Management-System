@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:waste_management/models/cleanlinessIssueModel.dart';
 import 'package:waste_management/screens/city_management_screens/admin_assign_driver_cleanliness_issue_screen.dart';
 import 'package:waste_management/service/cleanliness_issue_service.dart';
+import 'package:waste_management/widgets/admin_navbar.dart';
 
 class AdminCleanlinessIssueListScreen extends StatefulWidget {
   const AdminCleanlinessIssueListScreen({Key? key}) : super(key: key);
@@ -17,11 +18,9 @@ class AdminCleanlinessIssueListScreen extends StatefulWidget {
 
 class _AdminCleanlinessIssueListScreenState
     extends State<AdminCleanlinessIssueListScreen> {
-  final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();
-  List<CleanlinessIssueModel> _allIssues = [];
+  final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();  List<CleanlinessIssueModel> _allIssues = [];
   List<CleanlinessIssueModel> _filteredIssues = [];
-  bool _isLoading = true;
-  final Color primaryColor = const Color(0xFF59A867);
+  bool _isLoading = true;  final Color primaryColor = const Color(0xFF59A867);
 
   // Search functionality
   final TextEditingController _searchController = TextEditingController();
@@ -160,8 +159,7 @@ class _AdminCleanlinessIssueListScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
+    return Scaffold(      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
           'Cleanliness Issues',
@@ -170,16 +168,26 @@ class _AdminCleanlinessIssueListScreenState
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: primaryColor),
             onPressed: _loadAllIssues,
           ),
         ],
+      ),      bottomNavigationBar: AdminNavbar(
+        currentIndex: 2, // Always 2 for this screen
+        onTap: (index) {
+          if (index != 2) {
+            // Only navigate if not already on this tab
+            if (index == 0) {
+              Navigator.pushReplacementNamed(context, '/admin_home');
+            } else if (index == 1) {
+              Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
+            } else if (index == 3) {
+              Navigator.pushReplacementNamed(context, '/admin_breakdown');
+            }
+          }
+        },
       ),
       body: Column(
         children: [
