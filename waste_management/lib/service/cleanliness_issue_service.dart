@@ -155,6 +155,30 @@ class CleanlinessIssueService {
     }
   }
 
+  // Get resolved issues for a specific driver
+  Future<List<CleanlinessIssueModel>> getDriverResolvedIssues(
+    String driverId,
+  ) async {
+    try {
+      QuerySnapshot snapshot =
+          await _firestore
+              .collection(_collection)
+              .where('assignedDriverId', isEqualTo: driverId)
+              .where('status', isEqualTo: 'resolved')
+              .orderBy('resolvedTime', descending: true)
+              .get();
+
+      return snapshot.docs.map((doc) {
+        return CleanlinessIssueModel.fromMap(
+          doc.data() as Map<String, dynamic>,
+        );
+      }).toList();
+    } catch (e) {
+      print('Error getting driver resolved cleanliness issues: $e');
+      return [];
+    }
+  }
+
   // Get all pending issues (for city management)
   Future<List<CleanlinessIssueModel>> getPendingIssues() async {
     try {

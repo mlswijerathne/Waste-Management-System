@@ -11,21 +11,91 @@ class DriverCleanlinessIssueListScreen extends StatefulWidget {
   const DriverCleanlinessIssueListScreen({Key? key}) : super(key: key);
 
   @override
-  State<DriverCleanlinessIssueListScreen> createState() => _DriverCleanlinessIssueListScreenState();
+  State<DriverCleanlinessIssueListScreen> createState() =>
+      _DriverCleanlinessIssueListScreenState();
 }
 
-class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssueListScreen> {
+class _DriverCleanlinessIssueListScreenState
+    extends State<DriverCleanlinessIssueListScreen>
+    with SingleTickerProviderStateMixin {
   final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();
   final AuthService _authService = AuthService();
-  List<CleanlinessIssueModel> _assignedIssues = [];
+  List<CleanlinessIssueModel> _allIssues = [];
+  List<CleanlinessIssueModel> _filteredIssues = [];
   bool _isLoading = true;
   String _driverId = '';
   final Color primaryColor = const Color(0xFF59A867);
 
+  // Tabs
+  late TabController _tabController;
+  final List<String> _tabLabels = ['Assigned', 'In Progress', 'Resolved'];
+
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+
+  void _filterIssues() {
+    if (!mounted) return;
+
+    final query = _searchController.text.toLowerCase();
+
+    setState(() {
+      // First, filter by tab
+      List<CleanlinessIssueModel> tabFiltered;
+
+      switch (_tabController.index) {
+        case 0: // Assigned
+          tabFiltered =
+              _allIssues.where((issue) => issue.status == 'assigned').toList();
+          break;
+        case 1: // In Progress
+          tabFiltered =
+              _allIssues
+                  .where((issue) => issue.status == 'inProgress')
+                  .toList();
+          break;
+        case 2: // Resolved
+          tabFiltered =
+              _allIssues.where((issue) => issue.status == 'resolved').toList();
+          break;
+        default:
+          tabFiltered = _allIssues;
+      }
+
+      // Then, apply search filter if there's a query
+      if (query.isEmpty) {
+        _filteredIssues = tabFiltered;
+      } else {
+        _filteredIssues =
+            tabFiltered.where((issue) {
+              return issue.description.toLowerCase().contains(query) ||
+                  issue.location.toLowerCase().contains(query) ||
+                  issue.residentName.toLowerCase().contains(query);
+            }).toList();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange);
+    _searchController.addListener(_filterIssues);
     _getCurrentDriverId();
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      _filterIssues();
+    }
   }
 
   Future<void> _getCurrentDriverId() async {
@@ -37,40 +107,65 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
         });
         _loadAssignedIssues();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not authenticated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User not authenticated')));
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       print('Error getting current user: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load user data')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load user data')));
     }
   }
 
   Future<void> _loadAssignedIssues() async {
     if (_driverId.isEmpty) return;
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
-      final issues = await _cleanlinessService.getDriverAssignedIssues(_driverId);
-      setState(() {
-        _assignedIssues = issues;
-        _isLoading = false;
-      });
+      // Get all issues for this driver, including historical ones
+      final List<CleanlinessIssueModel> issues = [];
+
+      // Get assigned and in-progress issues
+      final activeIssues = await _cleanlinessService.getDriverAssignedIssues(
+        _driverId,
+      );
+      issues.addAll(activeIssues);
+
+      // For resolved issues, we need a separate query
+      final resolvedIssues = await _cleanlinessService.getDriverResolvedIssues(
+        _driverId,
+      );
+
+      // Combine all issues, removing duplicates by ID
+      for (final issue in resolvedIssues) {
+        if (!issues.any((i) => i.id == issue.id)) {
+          issues.add(issue);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _allIssues = issues;
+          _filterIssues();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading assigned issues: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load assigned issues')),
-      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load assigned issues')),
+        );
+      }
     }
   }
 
@@ -88,10 +183,8 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
-          'My Assigned Issues',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          'Cleanliness Issues',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -102,39 +195,73 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
             onPressed: _loadAssignedIssues,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: primaryColor,
+          labelColor: primaryColor,
+          unselectedLabelColor: Colors.grey[600],
+          tabs: _tabLabels.map((label) => Tab(text: label)).toList(),
+        ),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: primaryColor))
-          : _assignedIssues.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadAssignedIssues,
-                  color: primaryColor,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12.0),
-                    itemCount: _assignedIssues.length,
-                    itemBuilder: (context, index) {
-                      final issue = _assignedIssues[index];
-                      return _buildIssueCard(issue);
-                    },
-                  ),
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search issues by location, description...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
                 ),
+                filled: true,
+                fillColor: Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+              ),
+            ),
+          ),
+
+          // Main content
+          Expanded(
+            child:
+                _isLoading
+                    ? Center(
+                      child: CircularProgressIndicator(color: primaryColor),
+                    )
+                    : _filteredIssues.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                      onRefresh: _loadAssignedIssues,
+                      color: primaryColor,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(12.0),
+                        itemCount: _filteredIssues.length,
+                        itemBuilder: (context, index) {
+                          final issue = _filteredIssues[index];
+                          return _buildIssueCard(issue);
+                        },
+                      ),
+                    ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildEmptyState() {
+    final String tabLabel = _tabLabels[_tabController.index];
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.assignment_turned_in,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.assignment_turned_in, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'No Issues Assigned',
+            'No $tabLabel Issues',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -145,11 +272,11 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Text(
-              'When you are assigned to cleanliness issues, they will appear here',
+              _searchController.text.isEmpty
+                  ? 'You have no ${tabLabel.toLowerCase()} cleanliness issues'
+                  : 'No matching issues found for your search',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ),
           const SizedBox(height: 24),
@@ -172,9 +299,7 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
     return Card(
       margin: const EdgeInsets.only(bottom: 12.0),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () => _navigateToIssueDetails(issue),
         borderRadius: BorderRadius.circular(12.0),
@@ -206,7 +331,11 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
                       const SizedBox(height: 4.0),
                       Row(
                         children: [
-                          Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -237,13 +366,53 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
                             color: Colors.grey[500],
                           ),
                         ),
+                      if (issue.resolvedTime != null)
+                        Text(
+                          'Resolved: ${_formatDate(issue.resolvedTime!)}',
+                          style: TextStyle(
+                            fontSize: 12.0,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      // Show resident feedback if available and issue is resolved
+                      if (issue.status == 'resolved' &&
+                          issue.residentConfirmed == true &&
+                          issue.residentFeedback != null)
+                        Row(
+                          children: [
+                            Icon(Icons.star, size: 14, color: Colors.amber),
+                            const SizedBox(width: 2),
+                            Text(
+                              'Rated: ${issue.residentFeedback}',
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.amber[700],
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _buildStatusChip(issue.status),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildStatusChip(issue.status),
+                        // Show a star icon if the issue is resolved and has feedback
+                        if (issue.status == 'resolved' &&
+                            issue.residentConfirmed == true &&
+                            issue.residentFeedback != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4.0),
+                            
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 12.0),
                     Text(
                       _formatTime(issue.reportedTime),
@@ -254,18 +423,56 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
                     ),
                     Text(
                       _formatDate(issue.reportedTime),
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12.0, color: Colors.grey[600]),
                     ),
+                    // Add action buttons for non-resolved issues
+                    if (issue.status != 'resolved') ...[
+                      const SizedBox(height: 8.0),
+
+                      if (issue.status == 'assigned')
+                        ElevatedButton.icon(
+                          onPressed:
+                              () => _updateIssueStatus(issue, 'inProgress'),
+                          icon: const Icon(Icons.play_arrow, size: 16),
+                          label: const Text('Start Work'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            minimumSize: const Size(40, 32),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+
+                      if (issue.status == 'inProgress')
+                        ElevatedButton.icon(
+                          onPressed:
+                              () => _updateIssueStatus(issue, 'resolved'),
+                          icon: const Icon(Icons.check_circle, size: 16),
+                          label: const Text('Mark Resolved'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            minimumSize: const Size(40, 32),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
                 const SizedBox(width: 4.0),
-                Icon(
-                  Icons.chevron_right,
-                  color: primaryColor.withOpacity(0.5),
-                ),
+                Icon(Icons.chevron_right, color: primaryColor.withOpacity(0.5)),
               ],
             ),
           ),
@@ -276,13 +483,13 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
 
   Widget _buildStatusChip(String status) {
     String displayStatus = status;
-    
+
     if (status == 'inProgress') {
       displayStatus = 'IN PROGRESS';
     } else {
       displayStatus = status.toUpperCase();
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
@@ -346,10 +553,7 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
             children: [
               Text(
                 'Issue Details',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               IconButton(
                 icon: Icon(Icons.close),
@@ -360,16 +564,10 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
           const SizedBox(height: 10),
           Text(
             issue.description,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          Text(
-            'Location: ${issue.location}',
-            style: TextStyle(fontSize: 14),
-          ),
+          Text('Location: ${issue.location}', style: TextStyle(fontSize: 14)),
           Text(
             'Reported by: ${issue.residentName}',
             style: TextStyle(fontSize: 14),
@@ -383,31 +581,70 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
               'Assigned: ${_formatTime(issue.assignedTime!)}, ${_formatDate(issue.assignedTime!)}',
               style: TextStyle(fontSize: 14),
             ),
+          if (issue.resolvedTime != null)
+            Text(
+              'Resolved: ${_formatTime(issue.resolvedTime!)}, ${_formatDate(issue.resolvedTime!)}',
+              style: TextStyle(fontSize: 14),
+            ),
+
+          // Resident feedback section
+          if (issue.status == 'resolved' &&
+              issue.residentConfirmed == true &&
+              issue.residentFeedback != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Resident Feedback',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(issue.residentFeedback!, style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           if (issue.imageUrl.isNotEmpty) ...[
             const Text(
               'Image:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: issue.imageUrl.startsWith('http')
-                  ? Image.network(
-                      issue.imageUrl,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.memory(
-                      _decodeBase64(issue.imageUrl),
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+              child:
+                  issue.imageUrl.startsWith('http')
+                      ? Image.network(
+                        issue.imageUrl,
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                      : Image.memory(
+                        _decodeBase64(issue.imageUrl),
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
             ),
           ],
           const SizedBox(height: 20),
@@ -452,7 +689,9 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
                       // Launch maps with the location coordinates
                       // Implementation would depend on platform and map provider
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Opening location in maps...')),
+                        const SnackBar(
+                          content: Text('Opening location in maps...'),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.location_on),
@@ -471,24 +710,33 @@ class _DriverCleanlinessIssueListScreenState extends State<DriverCleanlinessIssu
     );
   }
 
-  Future<void> _updateIssueStatus(CleanlinessIssueModel issue, String newStatus) async {
-    Navigator.pop(context); // Close the bottom sheet
-    
+  Future<void> _updateIssueStatus(
+    CleanlinessIssueModel issue,
+    String newStatus,
+  ) async {
+    // Check if we're in a modal bottom sheet before popping
+    if (ModalRoute.of(context)?.isCurrent == false) {
+      Navigator.pop(context); // Close the bottom sheet only if it's open
+    }
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final success = await _cleanlinessService.updateIssueStatus(
         issueId: issue.id,
         newStatus: newStatus,
       );
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Issue ${newStatus == 'inProgress' ? 'marked as in progress' : 'resolved'} successfully'),
-            backgroundColor: newStatus == 'inProgress' ? Colors.blue : Colors.green,
+            content: Text(
+              'Issue ${newStatus == 'inProgress' ? 'marked as in progress' : 'resolved'} successfully',
+            ),
+            backgroundColor:
+                newStatus == 'inProgress' ? Colors.blue : Colors.green,
           ),
         );
         // Refresh the issues list
