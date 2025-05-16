@@ -14,7 +14,8 @@ class AdminBreakdownListScreen extends StatefulWidget {
       _AdminBreakdownListScreenState();
 }
 
-class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isLoading = true;
   List<Map<String, dynamic>> _breakdownReports = [];
   int _currentIndex = 3; // Set to 3 for breakdown tab
@@ -76,7 +77,8 @@ class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {  
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(      appBar: AppBar(
+    return Scaffold(
+      appBar: AppBar(
         title: const Text('Breakdown Reports'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -87,17 +89,24 @@ class _AdminBreakdownListScreenState extends State<AdminBreakdownListScreen> {  
             onPressed: _fetchBreakdownReports,
           ),
         ],
-      ),      bottomNavigationBar: AdminNavbar(
-        currentIndex: 3, 
+      ),
+      bottomNavigationBar: AdminNavbar(
+        currentIndex: 3,
         onTap: (index) {
           if (index != 3) {
             // Only navigate if not already on this tab
             if (index == 0) {
               Navigator.pushReplacementNamed(context, '/admin_home');
             } else if (index == 1) {
-              Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
+              Navigator.pushReplacementNamed(
+                context,
+                '/admin_active_drivers_screen',
+              );
             } else if (index == 2) {
-              Navigator.pushReplacementNamed(context, '/admin_cleanliness_issue_list');
+              Navigator.pushReplacementNamed(
+                context,
+                '/admin_cleanliness_issue_list',
+              );
             }
           }
         },

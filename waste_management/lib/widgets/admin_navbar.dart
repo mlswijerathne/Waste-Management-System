@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class  AdminNavbar extends StatelessWidget {
+class AdminNavbar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 
@@ -29,23 +29,30 @@ class  AdminNavbar extends StatelessWidget {
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent, 
-          highlightColor: Colors.transparent, 
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
         ),
         child: Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: BottomNavigationBar(
-            currentIndex: currentIndex,            onTap: (index) {
+            currentIndex: currentIndex,
+            onTap: (index) {
               // First update the index to show the selected tab
               onTap(index);
-              
+
               // Then navigate to appropriate screen if not already there
               if (index == 0 && currentIndex != 0) {
                 Navigator.pushReplacementNamed(context, '/admin_home');
               } else if (index == 1 && currentIndex != 1) {
-                Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/admin_active_drivers_screen',
+                );
               } else if (index == 2 && currentIndex != 2) {
-                Navigator.pushReplacementNamed(context, '/admin_cleanliness_issue_list');
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/admin_cleanliness_issue_list',
+                );
               } else if (index == 3 && currentIndex != 3) {
                 Navigator.pushReplacementNamed(context, '/admin_breakdown');
               }
@@ -53,19 +60,35 @@ class  AdminNavbar extends StatelessWidget {
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white, 
+            unselectedItemColor: Colors.white,
             showUnselectedLabels: true,
             showSelectedLabels: true,
-            elevation: 0, 
+            elevation: 0,
             items: [
               _buildBottomNavigationBarItem(
-                  Icons.home_outlined, Icons.home, 'Home', currentIndex == 0),
-              _buildBottomNavigationBarItem(Icons.fire_truck_outlined,
-                  Icons.fire_truck, 'Truck', currentIndex == 1),
-              _buildBottomNavigationBarItem(Icons.assessment_outlined,
-                  Icons.assessment, 'Cleanliness', currentIndex == 2),
-              _buildBottomNavigationBarItem(Icons.garage_outlined, Icons.garage,
-                  'Breakdown', currentIndex == 3),
+                Icons.home_outlined,
+                Icons.home,
+                'Home',
+                currentIndex == 0,
+              ),
+              _buildBottomNavigationBarItem(
+                Icons.fire_truck_outlined,
+                Icons.fire_truck,
+                'Truck',
+                currentIndex == 1,
+              ),
+              _buildBottomNavigationBarItem(
+                Icons.assessment_outlined,
+                Icons.assessment,
+                'Cleanliness',
+                currentIndex == 2,
+              ),
+              _buildBottomNavigationBarItem(
+                Icons.garage_outlined,
+                Icons.garage,
+                'Breakdown',
+                currentIndex == 3,
+              ),
             ],
           ),
         ),
@@ -74,10 +97,14 @@ class  AdminNavbar extends StatelessWidget {
   }
 
   BottomNavigationBarItem _buildBottomNavigationBarItem(
-      IconData icon, IconData activeIcon, String label, bool isSelected) {
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    bool isSelected,
+  ) {
     return BottomNavigationBarItem(
       icon: Transform.scale(
-        scale: isSelected ? 1.3 : 1.0, 
+        scale: isSelected ? 1.3 : 1.0,
         child: Icon(isSelected ? activeIcon : icon),
       ),
       label: label,

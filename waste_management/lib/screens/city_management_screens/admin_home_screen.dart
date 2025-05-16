@@ -185,20 +185,24 @@ class _AdminHomeState extends State<AdminHome> {
       }
     }
   }
+
   void _onTabTapped(int index) {
     if (index == _currentIndex)
       return; // Don't navigate if we're already on this tab
-    
+
     setState(() {
       _currentIndex = index;
     });
-    
+
     // Navigate to the appropriate screen if not home tab
     if (index != 0) {
       if (index == 1) {
         Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
       } else if (index == 2) {
-        Navigator.pushReplacementNamed(context, '/admin_cleanliness_issue_list');
+        Navigator.pushReplacementNamed(
+          context,
+          '/admin_cleanliness_issue_list',
+        );
       } else if (index == 3) {
         Navigator.pushReplacementNamed(context, '/admin_breakdown');
       }

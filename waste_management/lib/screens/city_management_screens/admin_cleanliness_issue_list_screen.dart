@@ -18,9 +18,11 @@ class AdminCleanlinessIssueListScreen extends StatefulWidget {
 
 class _AdminCleanlinessIssueListScreenState
     extends State<AdminCleanlinessIssueListScreen> {
-  final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();  List<CleanlinessIssueModel> _allIssues = [];
+  final CleanlinessIssueService _cleanlinessService = CleanlinessIssueService();
+  List<CleanlinessIssueModel> _allIssues = [];
   List<CleanlinessIssueModel> _filteredIssues = [];
-  bool _isLoading = true;  final Color primaryColor = const Color(0xFF59A867);
+  bool _isLoading = true;
+  final Color primaryColor = const Color(0xFF59A867);
 
   // Search functionality
   final TextEditingController _searchController = TextEditingController();
@@ -159,7 +161,8 @@ class _AdminCleanlinessIssueListScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(      backgroundColor: Colors.grey[100],
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
           'Cleanliness Issues',
@@ -174,7 +177,8 @@ class _AdminCleanlinessIssueListScreenState
             onPressed: _loadAllIssues,
           ),
         ],
-      ),      bottomNavigationBar: AdminNavbar(
+      ),
+      bottomNavigationBar: AdminNavbar(
         currentIndex: 2, // Always 2 for this screen
         onTap: (index) {
           if (index != 2) {
@@ -182,7 +186,10 @@ class _AdminCleanlinessIssueListScreenState
             if (index == 0) {
               Navigator.pushReplacementNamed(context, '/admin_home');
             } else if (index == 1) {
-              Navigator.pushReplacementNamed(context, '/admin_active_drivers_screen');
+              Navigator.pushReplacementNamed(
+                context,
+                '/admin_active_drivers_screen',
+              );
             } else if (index == 3) {
               Navigator.pushReplacementNamed(context, '/admin_breakdown');
             }
