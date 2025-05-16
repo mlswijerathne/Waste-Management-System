@@ -37,10 +37,10 @@ class AdminNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              // First update the index to show the selected tab
+
               onTap(index);
 
-              // Then navigate to appropriate screen if not already there
+              
               if (index == 0 && currentIndex != 0) {
                 Navigator.pushReplacementNamed(context, '/admin_home');
               } else if (index == 1 && currentIndex != 1) {
