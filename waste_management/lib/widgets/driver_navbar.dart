@@ -37,10 +37,10 @@ class DriversNavbar extends StatelessWidget {
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: (index) {
-              // Update the current index through the callback
+              
               onTap(index);
               
-              // Navigate to the appropriate screen based on the index
+              
               switch (index) {
                 case 0:
                   Navigator.pushReplacementNamed(context, '/driver_home');

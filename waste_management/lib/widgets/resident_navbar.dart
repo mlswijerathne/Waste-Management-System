@@ -86,10 +86,9 @@ class _ResidentNavbarState extends State<ResidentNavbar> {
           child: BottomNavigationBar(
             currentIndex: widget.currentIndex,
             onTap: (index) {
-              // First update the index to show the selected tab
+             
               widget.onTap(index);
 
-              // Then navigate to appropriate screen if not already there
               if (index == 0 && widget.currentIndex != 0) {
                 Navigator.pushReplacementNamed(context, '/resident_home');
               } else if (index == 1 && widget.currentIndex != 1) {
@@ -102,7 +101,7 @@ class _ResidentNavbarState extends State<ResidentNavbar> {
                   context,
                   '/resident_notifications',
                 );
-                // Reset unread count when navigating to notifications
+      
                 _fetchUnreadNotificationCount();
               } else if (index == 3 && widget.currentIndex != 3) {
                 Navigator.pushReplacementNamed(context, '/resident_profile');
