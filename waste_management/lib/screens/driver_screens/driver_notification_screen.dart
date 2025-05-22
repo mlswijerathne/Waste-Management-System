@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:waste_management/models/notificationModel.dart' as custom;
 import 'package:waste_management/service/notification_service.dart';
 import 'package:waste_management/service/route_service.dart';
-import 'package:waste_management/widgets/driver_navbar.dart'; 
+import 'package:waste_management/widgets/driver_navbar.dart';
+import 'package:waste_management/screens/driver_screens/driver_route_action_screen.dart';
 
 class DriverNotificationScreen extends StatefulWidget {
   const DriverNotificationScreen({super.key});
@@ -309,12 +310,30 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen>
 
     try {
       if (type.startsWith('route_')) {
-        // Navigate to driver's route details
-        Navigator.pushNamed(
-          context,
-          '/driver_route_details',
-          arguments: referenceId,
-        );
+        // First fetch the route details from the route id
+        try {
+          final route = await _routeService.getRoute(referenceId);
+          if (route != null) {
+            // Navigate to driver's route details with the full route object
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DriverRouteDetailScreen(route: route),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Route not found')));
+          }
+        } catch (routeError) {
+          print('Error fetching route details: $routeError');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error fetching route details: $routeError'),
+            ),
+          );
+        }
       } else if (type.contains('breakdown')) {
         // Navigate to driver's breakdown screen
         Navigator.pushNamed(context, '/breakdown_screen');
@@ -403,7 +422,7 @@ class _DriverNotificationScreenState extends State<DriverNotificationScreen>
               : _notifications.isEmpty
               ? _buildEmptyState()
               : _buildNotificationsList(),
-      
+
       floatingActionButton: FloatingActionButton(
         onPressed: _loadNotifications,
         backgroundColor: _primaryColor,
