@@ -12,10 +12,12 @@ class ReportCleanlinessIssuePage extends StatefulWidget {
   const ReportCleanlinessIssuePage({super.key});
 
   @override
-  _ReportCleanlinessIssuePageState createState() => _ReportCleanlinessIssuePageState();
+  _ReportCleanlinessIssuePageState createState() =>
+      _ReportCleanlinessIssuePageState();
 }
 
-class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage> {
+class _ReportCleanlinessIssuePageState
+    extends State<ReportCleanlinessIssuePage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final CleanlinessIssueService _issueService = CleanlinessIssueService();
@@ -29,6 +31,9 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
   Set<Marker> _markers = {};
   bool _isLoading = false;
   bool _isMapReady = false;
+
+  // Map mode indicator
+  bool _isMapFullScreen = false;
 
   @override
   void initState() {
@@ -79,7 +84,8 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
   Future<void> _getCurrentLocation() async {
     try {
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        desiredAccuracy: LocationAccuracy.high,
+      );
 
       setState(() {
         _currentPosition = position;
@@ -111,6 +117,9 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
             markerId: const MarkerId('selectedLocation'),
             position: _selectedLocation!,
             infoWindow: const InfoWindow(title: 'Issue Location'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueGreen,
+            ),
           ),
         };
       });
@@ -119,32 +128,61 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
 
   void _updateLocationText() {
     if (_selectedLocation != null) {
-      _locationController.text = 
+      _locationController.text =
           '${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}';
     }
   }
 
   void _onMapTap(LatLng position) {
     setState(() {
-      _selectedLocation = position;
-      _updateLocationText();
-      _updateMarker();
+      // If we're in normal mode, expand the map first
+      if (!_isMapFullScreen) {
+        _isMapFullScreen = true;
+      } else {
+        // In full-screen mode, update the location when tapped
+        _selectedLocation = position;
+        _updateLocationText();
+        _updateMarker();
+      }
+    });
+  }
+
+  // Toggle map between full screen and normal view with animation
+  void _toggleMapFullScreen() {
+    setState(() {
+      _isMapFullScreen = !_isMapFullScreen;
+
+      // When returning to the normal view, focus on the selected location
+      if (!_isMapFullScreen &&
+          _selectedLocation != null &&
+          _mapController != null &&
+          _isMapReady) {
+        // Small delay to ensure the map is properly rendered after state change
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: _selectedLocation!, zoom: 16),
+            ),
+          );
+        });
+      }
     });
   }
 
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -156,7 +194,7 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
       maxHeight: 800, // Reduced for Firestore storage
       imageQuality: 70, // Reduced quality to keep base64 string smaller
     );
-    
+
     if (pickedFile != null) {
       File imageFile = File(pickedFile.path);
       List<int> imageBytes = await imageFile.readAsBytes();
@@ -177,7 +215,7 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
       maxHeight: 800, // Reduced for Firestore storage
       imageQuality: 70, // Reduced quality to keep base64 string smaller
     );
-    
+
     if (pickedFile != null) {
       File imageFile = File(pickedFile.path);
       List<int> imageBytes = await imageFile.readAsBytes();
@@ -192,11 +230,15 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
 
   Future<void> _submitIssue() async {
     // Validate inputs
-    if (_descriptionController.text.isEmpty || 
-        _base64Image == null || 
+    if (_descriptionController.text.isEmpty ||
+        _base64Image == null ||
         _selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields, select a location, and add an image')),
+        const SnackBar(
+          content: Text(
+            'Please fill all fields, select a location, and add an image',
+          ),
+        ),
       );
       return;
     }
@@ -208,11 +250,11 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
     try {
       // Get current user
       UserModel? currentUser = await _authService.getCurrentUser();
-      
+
       if (currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please log in first')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Please log in first')));
         setState(() {
           _isLoading = false;
         });
@@ -245,12 +287,14 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cleanliness issue reported successfully')),
+        const SnackBar(
+          content: Text('Cleanliness issue reported successfully'),
+        ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error reporting issue: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error reporting issue: $e')));
       setState(() {
         _isLoading = false;
       });
@@ -262,6 +306,96 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
     // Color for icons and browse text
     const Color iconColor = Color(0xFF59A867);
 
+    // Map widget that will be reused in both normal and full-screen mode
+    Widget mapWidget = GoogleMap(
+      onMapCreated: (controller) {
+        _mapController = controller;
+        setState(() {
+          _isMapReady = true;
+        });
+        if (_currentPosition != null) {
+          controller.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: LatLng(
+                  _currentPosition!.latitude,
+                  _currentPosition!.longitude,
+                ),
+                zoom: 16,
+              ),
+            ),
+          );
+        }
+      },
+      initialCameraPosition: CameraPosition(
+        target:
+            _currentPosition != null
+                ? LatLng(
+                  _currentPosition!.latitude,
+                  _currentPosition!.longitude,
+                )
+                : const LatLng(6.9271, 79.8612), // Default location
+        zoom: 16,
+      ),
+      onTap: _onMapTap,
+      markers: _markers,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: true,
+      mapToolbarEnabled: false,
+      zoomControlsEnabled: true,
+      compassEnabled: true,
+    );
+
+    // Show full screen map if in full screen mode
+    if (_isMapFullScreen) {
+      return Scaffold(
+        body: Stack(
+          children: [
+            // Full screen map
+            SizedBox(
+              height: MediaQuery.of(context).size.height,
+              width: MediaQuery.of(context).size.width,
+              child: mapWidget,
+            ), // Simple back button to exit full screen
+            Positioned(
+              top: 40,
+              left: 16,
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: _toggleMapFullScreen,
+                ),
+              ),
+            ),
+
+            // Message at the bottom to help user
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Tap anywhere on the map to select location',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Report Cleanliness Issue'),
@@ -270,166 +404,79 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
           IconButton(
             icon: const Icon(Icons.list), // Icon for the report list
             onPressed: () {
-              Navigator.pushNamed(context, '/recent_report_and_request'); // Navigate to the route
+              Navigator.pushNamed(
+                context,
+                '/recent_report_and_request',
+              ); // Navigate to the route
             },
           ),
         ],
       ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF59A867)))
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Location Map
-                    Container(
-                      width: double.infinity,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.3),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: GoogleMap(
-                          onMapCreated: (controller) {
-                            _mapController = controller;
-                            setState(() {
-                              _isMapReady = true;
-                            });
-                            if (_currentPosition != null) {
-                              controller.animateCamera(
-                                CameraUpdate.newCameraPosition(
-                                  CameraPosition(
-                                    target: LatLng(
-                                      _currentPosition!.latitude,
-                                      _currentPosition!.longitude,
-                                    ),
-                                    zoom: 16,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          initialCameraPosition: CameraPosition(
-                            target: _currentPosition != null
-                                ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                                : const LatLng(6.9271, 79.8612), // Default location
-                            zoom: 16,
-                          ),
-                          onTap: _onMapTap,
-                          markers: _markers,
-                          myLocationEnabled: true,
-                          myLocationButtonEnabled: true,
-                          mapToolbarEnabled: false,
-                          zoomControlsEnabled: false,
-                          compassEnabled: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Instructions for map
-                    const Text(
-                      'Tap on the map to select the exact location of the issue',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Location Input (read-only, updated from map)
-                    Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.3),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _locationController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          hintText: 'Select location on map',
-                          prefixIcon: const Icon(Icons.location_on, color: iconColor),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.my_location, color: iconColor),
-                            onPressed: _getCurrentLocation,
-                            tooltip: 'Use current location',
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF59A867)),
+              )
+              : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Location Map (tappable to go full screen)
+                      GestureDetector(
+                        onTap:
+                            _toggleMapFullScreen, // Toggle to full screen on tap
+                        child: Container(
+                          width: double.infinity,
+                          height: 200,
+                          decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.3),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: mapWidget,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 10),
 
-                    // Description Input
-                    Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.3),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
+                      // Instructions for map
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.touch_app,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Tap on the map to expand and select location',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ],
                       ),
-                      child: TextField(
-                        controller: _descriptionController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Describe the issue',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Image Upload Section with camera and gallery options
-                    Text(
-                      'Add Photo Evidence',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    
-                    // Image preview or placeholder
-                    GestureDetector(
-                      onTap: () => _showImageSourceOptions(),
-                      child: Container(
-                        width: double.infinity,
-                        height: 200,
+                      // Location Input (read-only, updated from map)
+                      Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.grey.withOpacity(0.3),
@@ -439,70 +486,168 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
                             ),
                           ],
                         ),
-                        child: _imageFile == null
-                            ? Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.add_a_photo, size: 50, color: iconColor),
-                                  Text('Add Photo', style: TextStyle(color: iconColor)),
-                                ],
-                              )
-                            : Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      File(_imageFile!.path),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: CircleAvatar(
-                                      backgroundColor: Colors.black.withOpacity(0.7),
-                                      radius: 16,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.close, size: 16, color: Colors.white),
-                                        onPressed: () {
-                                          setState(() {
-                                            _imageFile = null;
-                                            _base64Image = null;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                        child: TextField(
+                          controller: _locationController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            hintText: 'Select location on map',
+                            prefixIcon: const Icon(
+                              Icons.location_on,
+                              color: iconColor,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: const Icon(
+                                Icons.my_location,
+                                color: iconColor,
                               ),
+                              onPressed: _getCurrentLocation,
+                              tooltip: 'Use current location',
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 20),
 
-                    // Submit Button
-                    ElevatedButton(
-                      onPressed: _submitIssue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF59A867),
-                        minimumSize: const Size(300, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                      // Description Input
+                      Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.3),
+                              spreadRadius: 2,
+                              blurRadius: 5,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _descriptionController,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Describe the issue',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        'Submit Report',
+                      const SizedBox(height: 20),
+
+                      // Image Upload Section with camera and gallery options
+                      Text(
+                        'Add Photo Evidence',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Colors.grey[800],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+
+                      // Image preview or placeholder
+                      GestureDetector(
+                        onTap: () => _showImageSourceOptions(),
+                        child: Container(
+                          width: double.infinity,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.3),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child:
+                              _imageFile == null
+                                  ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(
+                                        Icons.add_a_photo,
+                                        size: 50,
+                                        color: iconColor,
+                                      ),
+                                      Text(
+                                        'Add Photo',
+                                        style: TextStyle(color: iconColor),
+                                      ),
+                                    ],
+                                  )
+                                  : Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.file(
+                                          File(_imageFile!.path),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: CircleAvatar(
+                                          backgroundColor: Colors.black
+                                              .withOpacity(0.7),
+                                          radius: 16,
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.close,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _imageFile = null;
+                                                _base64Image = null;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // Submit Button
+                      ElevatedButton(
+                        onPressed: _submitIssue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF59A867),
+                          minimumSize: const Size(300, 50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Submit Report',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
     );
   }
 
@@ -512,61 +657,74 @@ class _ReportCleanlinessIssuePageState extends State<ReportCleanlinessIssuePage>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select Image Source',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      builder:
+          (context) => Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Camera option
-                Column(
+                const Text(
+                  'Select Image Source',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: const Color(0xFF59A867).withOpacity(0.1),
-                      child: IconButton(
-                        icon: const Icon(Icons.camera_alt, color: Color(0xFF59A867), size: 30),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _takePhoto();
-                        },
-                      ),
+                    // Camera option
+                    Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: const Color(
+                            0xFF59A867,
+                          ).withOpacity(0.1),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.camera_alt,
+                              color: Color(0xFF59A867),
+                              size: 30,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _takePhoto();
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('Camera'),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text('Camera'),
+                    // Gallery option
+                    Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: const Color(
+                            0xFF59A867,
+                          ).withOpacity(0.1),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.photo_library,
+                              color: Color(0xFF59A867),
+                              size: 30,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _pickImage();
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('Gallery'),
+                      ],
+                    ),
                   ],
                 ),
-                // Gallery option
-                Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: const Color(0xFF59A867).withOpacity(0.1),
-                      child: IconButton(
-                        icon: const Icon(Icons.photo_library, color: Color(0xFF59A867), size: 30),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _pickImage();
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Gallery'),
-                  ],
-                ),
+                const SizedBox(height: 20),
               ],
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
