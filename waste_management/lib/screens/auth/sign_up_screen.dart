@@ -12,20 +12,21 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
-  
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _nicController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
-  
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
   String _selectedRole = 'resident';
   bool _agreeToTerms = false;
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -37,24 +38,23 @@ class _SignupScreenState extends State<SignupScreen> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
-  
+
   void _handleSignUp() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
     if (!_agreeToTerms) {
       setState(() {
         _errorMessage = "Please agree to the terms of use and privacy policy";
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
     try {
       UserModel? user = await _authService.signUp(
         email: _emailController.text.trim(),
@@ -65,7 +65,7 @@ class _SignupScreenState extends State<SignupScreen> {
         address: _addressController.text.trim(),
         contactNumber: _contactController.text.trim(),
       );
-      
+
       if (user != null) {
         // Navigate based on user role
         if (mounted) {
@@ -86,18 +86,18 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = _authService.getMessageFromErrorCode(e);
         _isLoading = false;
       });
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     // Calculate available screen size
     final screenSize = MediaQuery.of(context).size;
     final cardHeight = screenSize.height * 0.85; // 85% of screen height
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
@@ -136,7 +136,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  
+
                   // Using Expanded and SingleChildScrollView to ensure everything fits
                   Expanded(
                     child: SingleChildScrollView(
@@ -160,7 +160,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 10),
 
                           // Email Address field
-                          const Text('Email Address', style: TextStyle(fontSize: 13)),
+                          const Text(
+                            'Email Address',
+                            style: TextStyle(fontSize: 13),
+                          ),
                           const SizedBox(height: 5),
                           _buildTextField(
                             controller: _emailController,
@@ -170,16 +173,21 @@ class _SignupScreenState extends State<SignupScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Please enter your email';
                               }
-                              if (!RegExp(r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$').hasMatch(value)) {
+                              if (!RegExp(
+                                r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$',
+                              ).hasMatch(value)) {
                                 return 'Please enter a valid email';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 10),
-                          
+
                           // Enroll Type field
-                          const Text('Enroll Type', style: TextStyle(fontSize: 13)),
+                          const Text(
+                            'Enroll Type',
+                            style: TextStyle(fontSize: 13),
+                          ),
                           const SizedBox(height: 5),
                           Container(
                             width: double.infinity,
@@ -192,13 +200,18 @@ class _SignupScreenState extends State<SignupScreen> {
                               child: DropdownButton<String>(
                                 value: _selectedRole,
                                 icon: const Icon(Icons.keyboard_arrow_down),
-                                items: <String>['resident', 'driver']
-                                    .map<DropdownMenuItem<String>>((String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
+                                items:
+                                    <String>[
+                                      'resident',
+                                      'driver',
+                                    ].map<DropdownMenuItem<String>>((
+                                      String value,
+                                    ) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
                                 onChanged: (String? newValue) {
                                   setState(() {
                                     _selectedRole = newValue!;
@@ -208,8 +221,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          
-                          
+
                           // NIC field
                           const Text('NIC', style: TextStyle(fontSize: 13)),
                           const SizedBox(height: 5),
@@ -224,7 +236,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                           ),
                           const SizedBox(height: 10),
-                          
+
                           // Address field
                           const Text('Address', style: TextStyle(fontSize: 13)),
                           const SizedBox(height: 5),
@@ -239,9 +251,12 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                           ),
                           const SizedBox(height: 10),
-                          
+
                           // Contact Number field
-                          const Text('Contact Number', style: TextStyle(fontSize: 13)),
+                          const Text(
+                            'Contact Number',
+                            style: TextStyle(fontSize: 13),
+                          ),
                           const SizedBox(height: 5),
                           _buildTextField(
                             controller: _contactController,
@@ -251,16 +266,20 @@ class _SignupScreenState extends State<SignupScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Please enter your contact number';
                               }
-                              if (value.length != 10 || !RegExp(r'^[0-9]+$').hasMatch(value)) {
+                              if (value.length != 10 ||
+                                  !RegExp(r'^[0-9]+$').hasMatch(value)) {
                                 return 'Contact number must be exactly 10 digits';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 10),
-                          
+
                           // Password field
-                          const Text('Password', style: TextStyle(fontSize: 13)),
+                          const Text(
+                            'Password',
+                            style: TextStyle(fontSize: 13),
+                          ),
                           const SizedBox(height: 5),
                           _buildTextField(
                             controller: _passwordController,
@@ -277,9 +296,12 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                           ),
                           const SizedBox(height: 10),
-                          
+
                           // Re-enter password field
-                          const Text('Re-enter password', style: TextStyle(fontSize: 13)),
+                          const Text(
+                            'Re-enter password',
+                            style: TextStyle(fontSize: 13),
+                          ),
                           const SizedBox(height: 5),
                           _buildTextField(
                             controller: _confirmPasswordController,
@@ -296,7 +318,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                           ),
                           const SizedBox(height: 10),
-                          
+
                           // Terms and Conditions
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,12 +343,18 @@ class _SignupScreenState extends State<SignupScreen> {
                                     children: [
                                       TextSpan(
                                         text: 'terms of use',
-                                        style: TextStyle(color: Theme.of(context).primaryColor),
+                                        style: TextStyle(
+                                          color: Theme.of(context).primaryColor,
+                                        ),
                                       ),
-                                      const TextSpan(text: ', Privacy policy and '),
+                                      const TextSpan(
+                                        text: ', Privacy policy and ',
+                                      ),
                                       TextSpan(
                                         text: 'Data Processing agreement',
-                                        style: TextStyle(color: Theme.of(context).primaryColor),
+                                        style: TextStyle(
+                                          color: Theme.of(context).primaryColor,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -335,23 +363,26 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             ],
                           ),
-                          
+
                           // Error message
                           if (_errorMessage != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 10),
                               child: Text(
                                 _errorMessage!,
-                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                         ],
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 10),
-                  
+
                   // Continue button
                   SizedBox(
                     width: double.infinity,
@@ -364,24 +395,36 @@ class _SignupScreenState extends State<SignupScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Continue',
-                              style: TextStyle(fontSize: 16, color: Colors.white),
-                            ),
+                      child:
+                          _isLoading
+                              ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                              : const Text(
+                                'Continue',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
                     ),
                   ),
-                  
+
                   // Sign in link
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Already have an account?', style: TextStyle(fontSize: 13)),
+                        const Text(
+                          'Already have an account?',
+                          style: TextStyle(fontSize: 13),
+                        ),
                         TextButton(
                           onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/sign_in_page');
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/sign_in_page',
+                            );
                           },
                           child: const Text(
                             'Sign in',
@@ -403,7 +446,7 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
-  
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -425,7 +468,10 @@ class _SignupScreenState extends State<SignupScreen> {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         errorStyle: const TextStyle(fontSize: 11),
       ),
       validator: validator,

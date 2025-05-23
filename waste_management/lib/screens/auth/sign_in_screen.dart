@@ -78,7 +78,6 @@ class _SignInPageState extends State<SignInPage> {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
       UserModel? user = await _authService.signIn(
         email: _emailController.text.trim(),
@@ -122,7 +121,7 @@ class _SignInPageState extends State<SignInPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = _authService.getMessageFromErrorCode(e);
         _isLoading = false;
       });
     }

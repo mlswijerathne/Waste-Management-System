@@ -13,6 +13,40 @@ class AuthService {
   static const String adminEmail = "admin@wastemanagement.com";
   static const String adminPassword = "admin123456";
 
+  // Convert Firebase Auth errors to user-friendly messages
+  String getMessageFromErrorCode(dynamic error) {
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'user-not-found':
+          return 'No user found with this email address.';
+        case 'wrong-password':
+          return 'Incorrect password. Please try again.';
+        case 'invalid-email':
+          return 'The email address is not valid.';
+        case 'user-disabled':
+          return 'This user account has been disabled.';
+        case 'email-already-in-use':
+          return 'An account already exists with this email address.';
+        case 'operation-not-allowed':
+          return 'This operation is not allowed.';
+        case 'weak-password':
+          return 'Please enter a stronger password.';
+        case 'network-request-failed':
+          return 'Network error occurred. Please check your connection.';
+        case 'too-many-requests':
+          return 'Too many unsuccessful login attempts. Please try again later.';
+        case 'invalid-credential':
+          return 'The provided credentials are invalid. Please try again.';
+        case 'account-exists-with-different-credential':
+          return 'An account already exists with the same email but different sign-in method.';
+        default:
+          return 'An error occurred during authentication.';
+      }
+    } else {
+      return 'Authentication failed. Please try again later.';
+    }
+  }
+
   // Get current user ID
   String? getCurrentUserId() {
     return _auth.currentUser?.uid;
@@ -180,9 +214,12 @@ class AuthService {
         return userModel;
       }
       return null;
+    } on FirebaseAuthException catch (e) {
+      print('Firebase Auth Error during sign up: ${e.code} - ${e.message}');
+      throw e; // Rethrow to handle with our custom error messages
     } catch (e) {
       print('Error during sign up: $e');
-      rethrow; // Rethrow to handle in UI
+      rethrow; // Rethrow other errors
     }
   }
 
@@ -246,9 +283,12 @@ class AuthService {
         }
       }
       return null;
+    } on FirebaseAuthException catch (e) {
+      print('Firebase Auth Error during sign in: ${e.code} - ${e.message}');
+      throw e; // Rethrow to handle with our custom error messages
     } catch (e) {
       print('Error during sign in: $e');
-      rethrow; // Rethrow to handle in UI
+      rethrow; // Rethrow other errors
     }
   }
 
@@ -256,9 +296,14 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      print(
+        'Firebase Auth Error sending password reset email: ${e.code} - ${e.message}',
+      );
+      throw e; // Rethrow to handle with our custom error messages
     } catch (e) {
       print('Error sending password reset email: $e');
-      rethrow; // Rethrow to handle in UI
+      rethrow; // Rethrow other errors
     }
   }
 

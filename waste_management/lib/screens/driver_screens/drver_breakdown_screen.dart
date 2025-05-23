@@ -59,6 +59,16 @@ class _BreakdownReportScreenState extends State<BreakdownReportScreen> {
     }
   }
 
+  // Clean form method
+  void _cleanForm() {
+    setState(() {
+      _selectedIssueType = null;
+      _delayHours = 0;
+      _delayMinutes = 0;
+      _descriptionController.clear();
+    });
+  }
+
   // Submit report method
   void _submitReport() {
     // Validate inputs
@@ -86,6 +96,8 @@ class _BreakdownReportScreenState extends State<BreakdownReportScreen> {
         )
         .then((_) {
           _showSuccessPopup();
+          // Clean form after successful submission
+          _cleanForm();
         })
         .catchError((error) {
           _showErrorDialog('Failed to submit report: $error');
@@ -167,13 +179,7 @@ class _BreakdownReportScreenState extends State<BreakdownReportScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          // Reset form or prepare for new report
-                          setState(() {
-                            _selectedIssueType = null;
-                            _delayHours = 0;
-                            _delayMinutes = 0;
-                            _descriptionController.clear();
-                          });
+                          // Form is already cleaned after submission
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
@@ -183,6 +189,22 @@ class _BreakdownReportScreenState extends State<BreakdownReportScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                // Back button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close popup
+                      Navigator.pop(context); // Navigate back to previous screen
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[600],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Back'),
+                  ),
                 ),
               ],
             ),

@@ -12,7 +12,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final AuthService _authService = AuthService();
-  
+
   bool _isLoading = false;
   String? _message;
   bool _isSuccess = false;
@@ -32,10 +32,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _isLoading = true;
       _message = null;
     });
-
     try {
       await _authService.sendPasswordResetEmail(_emailController.text.trim());
-      
+
       setState(() {
         _isLoading = false;
         _isSuccess = true;
@@ -45,7 +44,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       setState(() {
         _isLoading = false;
         _isSuccess = false;
-        _message = e.toString();
+        _message = _authService.getMessageFromErrorCode(e);
       });
     }
   }
@@ -73,14 +72,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const Center(
                 child: Text(
                   'Forgot Password',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Description
               const Text(
                 'Enter your email address below to receive a password reset link.',
@@ -88,7 +84,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 30),
-              
+
               // Email field
               TextFormField(
                 controller: _emailController,
@@ -98,10 +94,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   hintText: 'Enter your email',
                   filled: true,
                   fillColor: const Color(0xFFF5F5F5),
-                  prefixIcon: const Icon(
-                    Icons.email,
-                    color: Color(0xFF59A867),
-                  ),
+                  prefixIcon: const Icon(Icons.email, color: Color(0xFF59A867)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
@@ -124,7 +117,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 },
               ),
               const SizedBox(height: 30),
-              
+
               // Reset button
               ElevatedButton(
                 onPressed: _isLoading ? null : _resetPassword,
@@ -135,38 +128,43 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Send Reset Link',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                child:
+                    _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                          'Send Reset Link',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
               ),
               const SizedBox(height: 20),
-              
+
               // Message display
               if (_message != null)
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _isSuccess ? Colors.green.shade50 : Colors.red.shade50,
+                    color:
+                        _isSuccess ? Colors.green.shade50 : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     _message!,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _isSuccess ? Colors.green.shade800 : Colors.red.shade800,
+                      color:
+                          _isSuccess
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
                     ),
                   ),
                 ),
-                
+
               const Spacer(),
-              
+
               // Back to login link
               Center(
                 child: TextButton(

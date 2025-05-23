@@ -7,27 +7,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:waste_management/models/userModel.dart';
 import 'package:waste_management/service/auth_service.dart';
 
-
 class ResidentLocationPickerScreen extends StatefulWidget {
   final Function(double latitude, double longitude)? onLocationSelected;
 
-  const ResidentLocationPickerScreen({
-    Key? key,
-    this.onLocationSelected,
-  }) : super(key: key);
+  const ResidentLocationPickerScreen({Key? key, this.onLocationSelected})
+    : super(key: key);
 
   @override
-  State<ResidentLocationPickerScreen> createState() => _ResidentLocationPickerScreenState();
+  State<ResidentLocationPickerScreen> createState() =>
+      _ResidentLocationPickerScreenState();
 }
 
-class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScreen> {
+class _ResidentLocationPickerScreenState
+    extends State<ResidentLocationPickerScreen> {
   final Completer<GoogleMapController> _controller = Completer();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService(); // Use AuthService
-  
+
   // Default location (Sri Lanka center)
   static const LatLng _defaultLocation = LatLng(7.8731, 80.7718);
-  
+
   LatLng _currentLocation = _defaultLocation;
   LatLng _selectedLocation = _defaultLocation;
   bool _isLoading = true;
@@ -43,15 +42,17 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
 
   Future<void> _loadUserAndLocation() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Get current user using AuthService
       _currentUser = await _authService.getCurrentUser();
-      
+
       // Add debugging print statements
       print('Current user data in location picker: ${_currentUser?.toMap()}');
-      print('Latitude in picker: ${_currentUser?.latitude}, Longitude in picker: ${_currentUser?.longitude}');
-      
+      print(
+        'Latitude in picker: ${_currentUser?.latitude}, Longitude in picker: ${_currentUser?.longitude}',
+      );
+
       if (_currentUser == null) {
         setState(() {
           _errorMessage = 'Error: User not logged in';
@@ -59,25 +60,29 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
         });
         return;
       }
-      
+
       // Check if user already has saved location
       if (_currentUser!.latitude != null && _currentUser!.longitude != null) {
-        _selectedLocation = LatLng(_currentUser!.latitude!, _currentUser!.longitude!);
+        _selectedLocation = LatLng(
+          _currentUser!.latitude!,
+          _currentUser!.longitude!,
+        );
         _currentLocation = _selectedLocation;
         _updateMarkers();
         setState(() => _isLoading = false);
         _animateToPosition(_selectedLocation);
         return;
       }
-      
+
       // Request location permission
       final status = await Permission.location.request();
-      
+
       if (status.isGranted) {
         await _getCurrentLocation();
       } else {
         setState(() {
-          _errorMessage = 'Location permission denied. Please enable location services.';
+          _errorMessage =
+              'Location permission denied. Please enable location services.';
           _isLoading = false;
         });
       }
@@ -91,7 +96,7 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
 
   Future<void> _getCurrentLocation() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Check if location service is enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -107,13 +112,13 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      
+
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
         _selectedLocation = _currentLocation;
         _isLoading = false;
       });
-      
+
       _updateMarkers();
       _animateToPosition(_currentLocation);
     } catch (e) {
@@ -131,7 +136,10 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
         Marker(
           markerId: const MarkerId('selectedLocation'),
           position: _selectedLocation,
-          infoWindow: const InfoWindow(title: 'Your Location'),
+          infoWindow: const InfoWindow(title: 'Your Pinned Location'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueGreen,
+          ),
         ),
       );
     });
@@ -139,23 +147,22 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
 
   Future<void> _animateToPosition(LatLng position) async {
     final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(
-        target: position,
-        zoom: 16.0,
+    controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: position, zoom: 16.0),
       ),
-    ));
+    );
   }
 
   Future<void> _saveLocationToFirestore() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Make sure we have a current user
       if (_currentUser == null) {
         // Try to get the current user again if somehow it's null
         _currentUser = await _authService.getCurrentUser();
-        
+
         if (_currentUser == null) {
           setState(() {
             _errorMessage = 'Error: User not logged in';
@@ -164,28 +171,31 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
           return;
         }
       }
-      
+
       // Use AuthService method instead of direct Firestore update
       bool success = await _authService.updateUserLocation(
         _currentUser!.uid,
-        _selectedLocation.latitude, 
-        _selectedLocation.longitude
+        _selectedLocation.latitude,
+        _selectedLocation.longitude,
       );
-      
+
       if (success) {
         // Call the callback function if provided
         if (widget.onLocationSelected != null) {
           widget.onLocationSelected!(
-            _selectedLocation.latitude, 
-            _selectedLocation.longitude
+            _selectedLocation.latitude,
+            _selectedLocation.longitude,
           );
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location saved successfully!')),
+          const SnackBar(content: Text('Pinned location saved successfully!')),
         );
-        
-        Navigator.pushNamed(context, '/resident_home'); // Navigate to home screen
+
+        Navigator.pushNamed(
+          context,
+          '/resident_home',
+        ); // Navigate to home screen
       } else {
         setState(() {
           _errorMessage = 'Error saving location';
@@ -230,23 +240,33 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
               _updateMarkers();
             },
           ),
-          
-          // Center Position Indicator
-          Center(
+
+          // Helper Text
+          Positioned(
+            top: 16.0,
+            left: 16.0,
+            right: 16.0,
             child: Container(
-              margin: const EdgeInsets.only(bottom: 40.0),
-              child: Icon(
-                Icons.location_pin,
-                color: Colors.red.withOpacity(0.7),
-                size: 36.0,
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: const Text(
+                'Tap anywhere on the map to place your pin',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
-          
+
           // Error Message
           if (_errorMessage.isNotEmpty)
             Positioned(
-              top: 16.0,
+              top: 80.0, // Moved down to avoid overlapping with helper text
               left: 16.0,
               right: 16.0,
               child: Container(
@@ -261,16 +281,14 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
                 ),
               ),
             ),
-          
+
           // Loading Indicator
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
-            
+
           // Location Details Panel
           if (_currentUser != null)
             Positioned(
@@ -293,7 +311,8 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
                     ),
                   ],
                 ),
-                child: SingleChildScrollView(  // Added SingleChildScrollView to fix overflow
+                child: SingleChildScrollView(
+                  // Added SingleChildScrollView to fix overflow
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,20 +321,20 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Selected Location',
+                            'Pinned Location',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18.0,
                             ),
                           ),
-                          Flexible(  // Added Flexible to prevent overflow
+                          Flexible(
                             child: Text(
                               'User ID: ${_currentUser!.uid}',
                               style: const TextStyle(
                                 fontSize: 12.0,
                                 color: Colors.grey,
                               ),
-                              overflow: TextOverflow.ellipsis,  // Added overflow handling
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -329,17 +348,26 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
                         'Longitude: ${_selectedLocation.longitude.toStringAsFixed(6)}',
                         style: const TextStyle(fontSize: 16.0),
                       ),
+                      const SizedBox(height: 8.0),
+                      const Text(
+                        'This is where your waste collection will be scheduled.',
+                        style: TextStyle(
+                          fontSize: 14.0,
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                       const SizedBox(height: 16.0),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Expanded(  // Added Expanded to prevent overflow
+                          Expanded(
                             child: Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: ElevatedButton.icon(
                                 onPressed: _getCurrentLocation,
                                 icon: const Icon(Icons.my_location),
-                                label: const Text('My Location'),
+                                label: const Text('Use Current Location'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue,
                                   foregroundColor: Colors.white,
@@ -347,13 +375,13 @@ class _ResidentLocationPickerScreenState extends State<ResidentLocationPickerScr
                               ),
                             ),
                           ),
-                          Expanded(  // Added Expanded to prevent overflow
+                          Expanded(
                             child: Padding(
                               padding: const EdgeInsets.only(left: 8.0),
                               child: ElevatedButton.icon(
                                 onPressed: _saveLocationToFirestore,
                                 icon: const Icon(Icons.save),
-                                label: const Text('Save Location'),
+                                label: const Text('Save Pinned Location'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
                                   foregroundColor: Colors.white,
