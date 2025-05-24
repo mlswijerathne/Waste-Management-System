@@ -181,6 +181,19 @@ Here's a preview of the main screens in the application:
 - **State Management**: Provider
 
 ---
+## Team Members
+
+<div align="left">
+
+| <img src="https://github.com/mlswijerathne.png" width="50px" height="50px"/> | <img src="https://github.com/AHLDTminusha.png" width="50px" height="50px"/> | <img src="https://github.com/Dananjana03.png" width="50px" height="50px"/> | <img src="https://github.com/jmbrathnayke.png" width="50px" height="50px"/> | <img src="https://github.com/lakshyieS.png" width="50px" height="50px"/> | <img src="https://github.com/Nipuna7.png" width="50px" height="50px"/> | <img src="https://github.com/PemiduHerath.png" width="50px" height="50px"/> | <img src="https://github.com/thanushkadilhara.png" width="50px" height="50px"/> |
+|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|
+| **Lakshitha Wijerathne** | **Minusha Athapaththu** | **Dananjana Uyangoda** | **Manujaya Rathnayake** | **Lakshani Subasinghe** | **Gunasingha KGNN** | **Pemidu Ranisha Herath** | **thanushkadilhara** |
+| [@mlswijerathne](https://github.com/mlswijerathne) | [@AHLDTminusha](https://github.com/AHLDTminusha) | [@Dananjana03](https://github.com/Dananjana03) | [@jmbrathnayke](https://github.com/jmbrathnayke) | [@lakshyieS](https://github.com/lakshyieS) | [@Nipuna7](https://github.com/Nipuna7) | [@PemiduHerath](https://github.com/PemiduHerath) | [@thanushkadilhara](https://github.com/thanushkadilhara) |
+
+</div>
+
+
+---
 
 ## ⚙️ Setup Instructions
 
