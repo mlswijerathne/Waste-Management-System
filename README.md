@@ -103,52 +103,71 @@ Controls all backend operations including assignments, responses, and analytics.
 
 Here's a preview of the main screens in the application:
 
-- Login/Registration
-- Resident Dashboard
-- Issue Reporting
-- Truck Tracking
-- Driver Route View
-- Admin Control Panel
-- Analytics Dashboard
+<div align="center">
 
 <table>
   <tr>
-    <td align="center">
-      <img src="Assests/StartUpScreen.png" alt="Startup Screen" width="300"/><br/>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/StartUpScreen.png" alt="Startup Screen" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
       <strong>Startup Screen</strong>
     </td>
-    <td align="center">
-      <img src="Assests/SignIn.png" alt="Signin Screen" width="300"/><br/>
-      <strong>SignIn Screen</strong>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/SignIn.png" alt="Sign In" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Sign In</strong>
     </td>
-    <td align="center">
-      <img src="Assests/Signup.png" alt="Signup Screen" width="300"/><br/>
-      <strong>Signin Screen</strong>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="CityManagementHomeScreen.png" alt="CityManagement Home Screen" width="300"/><br/>
-      <strong>CityManagement Home Screen</strong>
-    </td>
-    <td align="center">
-      <img src="Driver Route View.jpeg" alt="Driver Route View" width="300"/><br/>
-      <strong>Driver Route View</strong>
-    </td>
-    <td align="center">
-      <img src="WasteRouteCreate.png" alt="Waste Route Create" width="300"/><br/>
-      <strong>Waste Route Create</strong>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/Signup.png" alt="Sign Up" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Sign Up</strong>
     </td>
   </tr>
+
   <tr>
-    <td align="center">
-      <img src="CitiManagementNotification.png" alt="CitiManagementNotification" width="300"/><br/>
-      <strong>City Management Notification</strong>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/ResidentHomeScreen.png" alt="Resident Home" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Resident Home</strong>
     </td>
-    <td></td>
-    <td></td>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/ResidentTrackWasteTRuck.png" alt="Track Truck" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Track Waste Truck</strong>
+    </td>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/ResidentRecentReportsScreen.png" alt="Reports" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Recent Reports</strong>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/CityManagementHomeScreen.png" alt="City Home" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>City Home</strong>
+    </td>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/WasteRouteCreate.png" alt="Route Create" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Create Route</strong>
+    </td>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/CitiManagementNotification.png" alt="Notifications" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Notifications</strong>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/ActiveTrucks.png" alt="Active Trucks" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Active Trucks</strong>
+    </td>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/DriverScheduleRoutes.png" alt="Driver Schedules" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Driver Schedules</strong>
+    </td>
+    <td align="center" style="padding: 15px;">
+      <img src="Assests/DriverRouteStart.png" alt="Route Start" width="220" style="border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/><br/>
+      <strong>Route Start</strong>
+    </td>
   </tr>
 </table>
+
+</div>
 
 ---
   
