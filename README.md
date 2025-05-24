@@ -111,6 +111,45 @@ Here's a preview of the main screens in the application:
 - Admin Control Panel
 - Analytics Dashboard
 
+<table>
+  <tr>
+    <td align="center">
+      <img src="Assests/StartUpScreen.png" alt="Startup Screen" width="300"/><br/>
+      <strong>Startup Screen</strong>
+    </td>
+    <td align="center">
+      <img src="Assests/SignIn.png" alt="Signin Screen" width="300"/><br/>
+      <strong>SignIn Screen</strong>
+    </td>
+    <td align="center">
+      <img src="Assests/Signup.png" alt="Signup Screen" width="300"/><br/>
+      <strong>Signin Screen</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="CityManagementHomeScreen.png" alt="CityManagement Home Screen" width="300"/><br/>
+      <strong>CityManagement Home Screen</strong>
+    </td>
+    <td align="center">
+      <img src="Driver Route View.jpeg" alt="Driver Route View" width="300"/><br/>
+      <strong>Driver Route View</strong>
+    </td>
+    <td align="center">
+      <img src="WasteRouteCreate.png" alt="Waste Route Create" width="300"/><br/>
+      <strong>Waste Route Create</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="CitiManagementNotification.png" alt="CitiManagementNotification" width="300"/><br/>
+      <strong>City Management Notification</strong>
+    </td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
 ---
   
 ## 🛠️ Technologies Used
