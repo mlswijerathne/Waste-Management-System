@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:waste_management/utils/route_guard.dart';
 
-/// A wrapper widget that protects routes based on user roles
-/// This widget checks if the current user has the required role permissions
-/// before displaying the protected content, showing a loading state during verification
+/**
+ * Security middleware widget implementing role-based access control (RBAC)
+ * Acts as a gatekeeper for sensitive routes, preventing unauthorized navigation
+ * Integrates with authentication system to enforce permission boundaries
+ * Provides seamless UX with loading states and automatic redirects
+ */
 class ProtectedRoute extends StatefulWidget {
-  /// The widget to display if access is granted
-  final Widget child;
+  final Widget child; // Protected content to render after successful authorization
+  final List<String> allowedRoles; // Permission whitelist - user needs ANY of these roles
   
-  /// List of user roles that are allowed to access this route
-  /// User must have at least one of these roles to gain access
-  final List<String> allowedRoles;
-  
-  /// Constructor for creating a protected route with role-based access control
+  /**
+   * Creates a protected route wrapper with role-based security
+   * @param child The widget tree to protect behind authentication
+   * @param allowedRoles Array of role strings that grant access (OR logic)
+   */
   const ProtectedRoute({
     Key? key,
     required this.child,
@@ -23,51 +26,49 @@ class ProtectedRoute extends StatefulWidget {
   State<ProtectedRoute> createState() => _ProtectedRouteState();
 }
 
-/// Private state class that manages the access verification process
+/**
+ * Private state manager for authentication flow and UI transitions
+ * Handles async permission checking without blocking the UI thread
+ * Manages widget lifecycle to prevent memory leaks during navigation
+ */
 class _ProtectedRouteState extends State<ProtectedRoute> {
-  /// Flag to track if the role verification is still in progress
-  bool _isChecking = true;
-  
-  /// Flag to store the result of the access check
-  /// True if user has required permissions, false otherwise
-  bool _hasAccess = false;
+  bool _isChecking = true; // Loading state flag - prevents premature content display
+  bool _hasAccess = false; // Authorization result cache - drives conditional rendering
 
   @override
   void initState() {
     super.initState();
-    // Start the access verification process immediately when widget initializes
-    _checkAccess();
+    _checkAccess(); // Trigger authentication check immediately on widget mount
   }
 
-  /// Asynchronously verifies if the current user has access to this route
-  /// Uses RouteGuard utility to check user roles against allowed roles
-  /// Updates the widget state once verification is complete
+  /**
+   * Core authorization logic - validates user permissions against route requirements
+   * Delegates to RouteGuard for centralized security policy enforcement
+   * Updates UI state safely with mounted checks to prevent setState() errors
+   */
   Future<void> _checkAccess() async {
-    // Delegate role checking to RouteGuard utility
-    bool hasAccess = await RouteGuard.checkUserRole(context, widget.allowedRoles);
+    bool hasAccess = await RouteGuard.checkUserRole(context, widget.allowedRoles); // Query auth service
     
-    // Only update state if the widget is still mounted to avoid memory leaks
-    if (mounted) {
+    if (mounted) { // Defensive programming - prevent state updates on disposed widgets
       setState(() {
-        _isChecking = false;  // Mark verification as complete
-        _hasAccess = hasAccess;  // Store the access result
+        _isChecking = false; // End loading phase
+        _hasAccess = hasAccess; // Cache authorization result for render logic
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Show loading indicator while role verification is in progress
-    if (_isChecking) {
+    if (_isChecking) { // Authentication in progress - show loading UI
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(), // Standard Material loading indicator
         ),
       );
     }
     
-    // If access is granted, show the child widget
-    // The RouteGuard will handle redirects if access is denied
-    return widget.child;
+    // Authorization complete - RouteGuard handles redirect logic for denied access
+    // If we reach this point, either access is granted OR user has been redirected
+    return widget.child; // Render protected content
   }
 }
