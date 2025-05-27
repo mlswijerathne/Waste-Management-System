@@ -1,57 +1,37 @@
-/// Model class representing a cleanliness issue reported by residents
-/// This class handles the complete lifecycle of a cleanliness issue from reporting to resolution
+/**
+ * Core data model for tracking cleanliness issues throughout their complete lifecycle
+ * Manages the workflow from initial resident reporting through driver assignment to final resolution
+ * Supports geolocation tracking, status management, and resident feedback collection
+ */
 class CleanlinessIssueModel {
-  /// Unique identifier for the cleanliness issue
-  final String id;
+  final String id; // Primary key - UUID for database persistence and API references
+  final String residentId; // Foreign key linking to the reporting user's account
+  final String residentName; // Cached display name for UI without additional lookups
+  final String description; // User-provided issue details for driver context
+  final String location; // Street address or landmark description for human readability
+  final double latitude; // WGS84 coordinate for precise mapping and navigation
+  final double longitude; // WGS84 coordinate for precise mapping and navigation  
+  final String imageUrl; // Cloud storage path for visual evidence of the issue
+  final DateTime reportedTime; // System timestamp for SLA tracking and reporting
   
-  /// ID of the resident who reported the issue
-  final String residentId;
+  // Workflow state management - drives UI behavior and business logic
+  final String status; // State machine: pending → assigned → inProgress → resolved
   
-  /// Full name of the resident who reported the issue
-  final String residentName;
+  // Assignment tracking - populated when issue is delegated to cleanup crew
+  final String? assignedDriverId; // Foreign key to driver account (null during pending state)
+  final String? assignedDriverName; // Cached driver name for notification display
+  final DateTime? assignedTime; // SLA start time for performance metrics
   
-  /// Detailed description of the cleanliness issue
-  final String description;
-  
-  /// Human-readable location/address where the issue was reported
-  final String location;
-  
-  /// GPS latitude coordinate of the issue location (-90 to 90)
-  final double latitude;
-  
-  /// GPS longitude coordinate of the issue location (-180 to 180)
-  final double longitude;
-  
-  /// URL path to the image showing the cleanliness issue
-  final String imageUrl;
-  
-  /// Timestamp when the issue was first reported
-  final DateTime reportedTime;
-  
-  /// Current status of the issue workflow
-  /// Valid values: 'pending', 'assigned', 'inProgress', 'resolved'
-  final String status;
-  
-  /// ID of the driver assigned to handle this issue (nullable until assigned)
-  final String? assignedDriverId;
-  
-  /// Full name of the assigned driver (nullable until assigned)
-  final String? assignedDriverName;
-  
-  /// Timestamp when the issue was assigned to a driver (nullable until assigned)
-  final DateTime? assignedTime;
-  
-  /// Timestamp when the issue was marked as resolved (nullable until resolved)
-  final DateTime? resolvedTime;
-  
-  /// Whether the resident has confirmed the issue resolution (nullable until feedback given)
-  final bool? residentConfirmed;
-  
-  /// Optional feedback text provided by the resident after resolution
-  final String? residentFeedback;
+  // Resolution tracking - populated when work is completed
+  final DateTime? resolvedTime; // Completion timestamp for SLA calculations
+  final bool? residentConfirmed; // Quality assurance - resident verification of cleanup
+  final String? residentFeedback; // Post-resolution comments for service improvement
 
-  /// Constructor with validation for critical fields
-  /// Throws ArgumentError if status or coordinates are invalid
+  /**
+   * Primary constructor with built-in data validation
+   * Enforces business rules for status workflow and GPS coordinate boundaries
+   * @throws ArgumentError for invalid status values or out-of-range coordinates
+   */
   CleanlinessIssueModel({
     required this.id,
     required this.residentId,
@@ -70,90 +50,106 @@ class CleanlinessIssueModel {
     this.residentConfirmed,
     this.residentFeedback,
   }) {
-    // Validate status against allowed workflow states
+    // Business rule enforcement: validate against defined workflow states
     if (!['pending', 'assigned', 'inProgress', 'resolved'].contains(status)) {
       throw ArgumentError(
         'Status must be pending, assigned, inProgress, or resolved',
       );
     }
 
-    // Validate GPS coordinates are within valid ranges
-    if (latitude < -90 || latitude > 90) {
+    // Geospatial validation: ensure coordinates fall within Earth's valid ranges
+    if (latitude < -90 || latitude > 90) { // Latitude bounds: South Pole to North Pole
       throw ArgumentError('Latitude must be between -90 and 90');
     }
-    if (longitude < -180 || longitude > 180) {
+    if (longitude < -180 || longitude > 180) { // Longitude bounds: International Date Line wrap
       throw ArgumentError('Longitude must be between -180 and 180');
     }
   }
 
-  /// Factory constructor to create CleanlinessIssueModel from Map data
-  /// Handles type conversion and provides safe defaults for missing values
-  /// Supports both DateTime objects and ISO8601 strings for date fields
+  /**
+   * Deserialization factory for creating instances from external data sources
+   * Handles polymorphic DateTime parsing (objects vs ISO8601 strings)
+   * Provides defensive defaults to prevent null pointer exceptions
+   * Essential for API responses, database queries, and local storage retrieval
+   */
   factory CleanlinessIssueModel.fromMap(Map<String, dynamic> map) {
     return CleanlinessIssueModel(
-      id: map['id'] ?? '',
-      residentId: map['residentId'] ?? '',
-      residentName: map['residentName'] ?? '',
-      description: map['description'] ?? '',
-      location: map['location'] ?? '',
-      latitude: map['latitude'] ?? 0.0,
-      longitude: map['longitude'] ?? 0.0,
-      imageUrl: map['imageUrl'] ?? '',
-      // Handle both DateTime objects and ISO8601 strings, default to current time
+      id: map['id'] ?? '', // Fallback for missing primary keys
+      residentId: map['residentId'] ?? '', // Fallback for missing foreign keys
+      residentName: map['residentName'] ?? '', // Fallback for missing display names
+      description: map['description'] ?? '', // Fallback to empty description
+      location: map['location'] ?? '', // Fallback to empty location
+      latitude: map['latitude'] ?? 0.0, // Default to equator if missing
+      longitude: map['longitude'] ?? 0.0, // Default to prime meridian if missing
+      imageUrl: map['imageUrl'] ?? '', // Fallback to empty image path
+      
+      // Robust DateTime parsing with multiple format support
       reportedTime:
           map['reportedTime'] != null
               ? (map['reportedTime'] is DateTime
-                  ? map['reportedTime']
-                  : DateTime.parse(map['reportedTime']))
-              : DateTime.now(),
-      status: map['status'] ?? 'pending',
-      assignedDriverId: map['assignedDriverId'],
-      assignedDriverName: map['assignedDriverName'],
-      // Parse assignedTime if present, supporting both DateTime and string formats
+                  ? map['reportedTime'] // Direct DateTime object
+                  : DateTime.parse(map['reportedTime'])) // Parse ISO8601 string
+              : DateTime.now(), // Default to current time if missing
+      status: map['status'] ?? 'pending', // Default to initial workflow state
+      
+      // Optional assignment fields - remain null until populated
+      assignedDriverId: map['assignedDriverId'], // Null until driver assigned
+      assignedDriverName: map['assignedDriverName'], // Null until driver assigned
+      
+      // Flexible DateTime parsing for assignment tracking
       assignedTime:
           map['assignedTime'] != null
               ? (map['assignedTime'] is DateTime
-                  ? map['assignedTime']
-                  : DateTime.parse(map['assignedTime']))
-              : null,
-      // Parse resolvedTime if present, supporting both DateTime and string formats
+                  ? map['assignedTime'] // Direct DateTime object
+                  : DateTime.parse(map['assignedTime'])) // Parse ISO8601 string
+              : null, // Null until assignment occurs
+      
+      // Flexible DateTime parsing for resolution tracking
       resolvedTime:
           map['resolvedTime'] != null
               ? (map['resolvedTime'] is DateTime
-                  ? map['resolvedTime']
-                  : DateTime.parse(map['resolvedTime']))
-              : null,
-      residentConfirmed: map['residentConfirmed'],
-      residentFeedback: map['residentFeedback'],
+                  ? map['resolvedTime'] // Direct DateTime object
+                  : DateTime.parse(map['resolvedTime'])) // Parse ISO8601 string
+              : null, // Null until resolution occurs
+      
+      // Optional feedback fields - remain null until resident provides input
+      residentConfirmed: map['residentConfirmed'], // Null until resident confirms
+      residentFeedback: map['residentFeedback'], // Null until resident provides feedback
     );
   }
 
-  /// Convert the model instance to a Map for serialization
-  /// DateTime objects are converted to ISO8601 strings for storage/transmission
+  /**
+   * Serialization method for data persistence and API transmission
+   * Converts all DateTime objects to ISO8601 strings for JSON compatibility
+   * Creates a flat Map structure suitable for database storage and HTTP requests
+   */
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'residentId': residentId,
-      'residentName': residentName,
-      'description': description,
-      'location': location,
-      'latitude': latitude,
-      'longitude': longitude,
-      'imageUrl': imageUrl,
-      'reportedTime': reportedTime.toIso8601String(),
-      'status': status,
-      'assignedDriverId': assignedDriverId,
-      'assignedDriverName': assignedDriverName,
-      'assignedTime': assignedTime?.toIso8601String(),
-      'resolvedTime': resolvedTime?.toIso8601String(),
-      'residentConfirmed': residentConfirmed,
-      'residentFeedback': residentFeedback,
+      'id': id, // Primary key for database operations
+      'residentId': residentId, // Foreign key reference
+      'residentName': residentName, // Cached display name
+      'description': description, // Issue details for drivers
+      'location': location, // Human-readable address
+      'latitude': latitude, // GPS coordinate for mapping
+      'longitude': longitude, // GPS coordinate for navigation
+      'imageUrl': imageUrl, // Cloud storage reference
+      'reportedTime': reportedTime.toIso8601String(), // Standardized timestamp format
+      'status': status, // Current workflow state
+      'assignedDriverId': assignedDriverId, // Driver assignment (may be null)
+      'assignedDriverName': assignedDriverName, // Driver name cache (may be null)
+      'assignedTime': assignedTime?.toIso8601String(), // Assignment timestamp (may be null)
+      'resolvedTime': resolvedTime?.toIso8601String(), // Resolution timestamp (may be null)
+      'residentConfirmed': residentConfirmed, // Quality confirmation (may be null)
+      'residentFeedback': residentFeedback, // Post-resolution comments (may be null)
     };
   }
 
-  /// Create a new instance with selected fields updated
-  /// Useful for updating issue status, assignment, or resolution details
-  /// Returns a new CleanlinessIssueModel instance with specified changes
+  /**
+   * Immutable update pattern for state management
+   * Creates new instances with selective field modifications while preserving immutability
+   * Critical for Redux-style state management and preventing accidental mutations
+   * Commonly used for status updates, assignment changes, and resolution recording
+   */
   CleanlinessIssueModel copyWith({
     String? id,
     String? residentId,
@@ -173,22 +169,22 @@ class CleanlinessIssueModel {
     String? residentFeedback,
   }) {
     return CleanlinessIssueModel(
-      id: id ?? this.id,
-      residentId: residentId ?? this.residentId,
-      residentName: residentName ?? this.residentName,
-      description: description ?? this.description,
-      location: location ?? this.location,
-      latitude: latitude ?? this.latitude,
-      longitude: longitude ?? this.longitude,
-      imageUrl: imageUrl ?? this.imageUrl,
-      reportedTime: reportedTime ?? this.reportedTime,
-      status: status ?? this.status,
-      assignedDriverId: assignedDriverId ?? this.assignedDriverId,
-      assignedDriverName: assignedDriverName ?? this.assignedDriverName,
-      assignedTime: assignedTime ?? this.assignedTime,
-      resolvedTime: resolvedTime ?? this.resolvedTime,
-      residentConfirmed: residentConfirmed ?? this.residentConfirmed,
-      residentFeedback: residentFeedback ?? this.residentFeedback,
+      id: id ?? this.id, // Preserve existing ID unless explicitly changed
+      residentId: residentId ?? this.residentId, // Preserve reporter identity
+      residentName: residentName ?? this.residentName, // Preserve cached name
+      description: description ?? this.description, // Preserve issue details
+      location: location ?? this.location, // Preserve location data
+      latitude: latitude ?? this.latitude, // Preserve GPS coordinates
+      longitude: longitude ?? this.longitude, // Preserve GPS coordinates
+      imageUrl: imageUrl ?? this.imageUrl, // Preserve image reference
+      reportedTime: reportedTime ?? this.reportedTime, // Preserve original timestamp
+      status: status ?? this.status, // Allow status progression updates
+      assignedDriverId: assignedDriverId ?? this.assignedDriverId, // Allow driver assignment
+      assignedDriverName: assignedDriverName ?? this.assignedDriverName, // Allow driver name update
+      assignedTime: assignedTime ?? this.assignedTime, // Allow assignment timestamp
+      resolvedTime: resolvedTime ?? this.resolvedTime, // Allow resolution timestamp
+      residentConfirmed: residentConfirmed ?? this.residentConfirmed, // Allow confirmation update
+      residentFeedback: residentFeedback ?? this.residentFeedback, // Allow feedback addition
     );
   }
 }
