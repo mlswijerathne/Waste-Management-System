@@ -52,11 +52,8 @@ class NotificationService {
     print('Firebase Messaging Token: $token');
 
     // Save the token to the user's document in Firestore
-    if(token !=null)
-    {
-      await _saveTokenToFirestore(token);
-    }
-  
+    await _saveTokenToFirestore(token!);
+    
     // Listen for token refreshes
     _firebaseMessaging.onTokenRefresh.listen(_saveTokenToFirestore);
 
